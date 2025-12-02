@@ -2,1277 +2,1315 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Muzcuk.Systeam - Ultimate Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gramano - Anonim Sosyal Ağ</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap');
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        /* ==================== 1. TEMEL AYARLAR & DARK/LIGHT MODE ==================== */
+        :root {
+            --primary: #8b5cf6; /* Gramano Moru */
+            --primary-dark: #7c3aed;
+            --bg-light: #f8fafc;
+            --text-light: #0f172a;
+            --border-light: #e2e8f0;
+            --card-light: #ffffff;
+            
+            --bg-dark: #020617; /* Derin Siyah/Lacivert */
+            --text-dark: #f8fafc;
+            --border-dark: #1e293b;
+            --card-dark: #0f172a;
+
+            --bg: var(--bg-light);
+            --text: var(--text-light);
+            --border: var(--border-light);
+            --card-bg: var(--card-light);
+            --nav-height: 60px;
+        }
+
+        [data-theme="dark"] {
+            --bg: var(--bg-dark);
+            --text: var(--text-dark);
+            --border: var(--border-dark);
+            --card-bg: var(--card-dark);
+        }
+
+        /* Temel Stiller */
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body {
-            font-family: 'Exo 2', sans-serif;
-            overflow: hidden;
-            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-            color: #fff;
-        }
-
-        .orbitron { font-family: 'Orbitron', sans-serif; }
-
-        /* Glass Morphism */
-        .glass {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(96, 165, 250, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.15),
-                        inset 0 0 20px 0 rgba(14, 165, 233, 0.05);
-        }
-
-        .glass-hover:hover {
-            border-color: rgba(56, 189, 248, 0.5);
-            box-shadow: 0 12px 40px 0 rgba(14, 165, 233, 0.25);
-            transform: translateY(-2px);
-        }
-
-        /* Neon Effects */
-        .neon-text {
-            color: #38bdf8;
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.8),
-                         0 0 20px rgba(56, 189, 248, 0.5),
-                         0 0 30px rgba(56, 189, 248, 0.3);
-        }
-
-        .neon-border {
-            border: 2px solid #38bdf8;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5),
-                        inset 0 0 15px rgba(56, 189, 248, 0.1);
-        }
-
-        /* Animations */
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        @keyframes rotate-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        @keyframes slide-in {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-        .animate-rotate { animation: rotate-slow 20s linear infinite; }
-
-        /* Scrollbar */
-        .custom-scroll::-webkit-scrollbar { width: 8px; }
-        .custom-scroll::-webkit-scrollbar-track { 
-            background: rgba(0,0,0,0.3); 
-            border-radius: 10px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb { 
-            background: linear-gradient(180deg, #0ea5e9, #38bdf8);
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
-        }
-
-        /* Loading Screen */
-        .loader {
-            width: 100px;
-            height: 100px;
-            position: relative;
-        }
-
-        .loader::before, .loader::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            animation: pulse-ring 2s ease-out infinite;
-        }
-
-        .loader::before {
-            width: 100%;
-            height: 100%;
-            border: 3px solid rgba(56, 189, 248, 0.5);
-            animation-delay: 0s;
-        }
-
-        .loader::after {
-            width: 80%;
-            height: 80%;
-            top: 10%;
-            left: 10%;
-            border: 3px solid rgba(14, 165, 233, 0.5);
-            animation-delay: 0.5s;
-        }
-
-        @keyframes pulse-ring {
-            0% { transform: scale(0.5); opacity: 1; }
-            100% { transform: scale(1.2); opacity: 0; }
-        }
-
-        .loader-core {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 40px;
-            height: 40px;
-            margin: -20px 0 0 -20px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #0ea5e9, #38bdf8);
-            animation: rotate-slow 2s linear infinite;
-        }
-
-        /* Button Hover Effects */
-        .btn-primary {
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(56, 189, 248, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.5s, height 0.5s;
-        }
-
-        .btn-primary:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(56, 189, 248, 0.4);
-        }
-
-        /* Canvas */
-        #canvas-container { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            z-index: 0;
-        }
-
-        /* News Card Styles */
-        .news-card {
-            transition: all 0.3s ease;
-            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background-color 0.3s, color 0.3s;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
+        
+        /* Scrollbar Gizleme */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
 
-        .news-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.1), transparent);
-            transition: left 0.5s;
+        /* Tüm uygulama konteynerleri */
+        .full-screen-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 100; display: none;
+            flex-direction: column;
         }
 
-        .news-card:hover::before {
-            left: 100%;
-        }
-
-        .news-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(14, 165, 233, 0.3);
-        }
-
-        /* Badge Styles */
-        .badge {
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.3), rgba(56, 189, 248, 0.3));
-            border: 1px solid rgba(56, 189, 248, 0.5);
-            backdrop-filter: blur(10px);
-        }
-
-        /* Modal Transitions */
-        .modal-content {
-            animation: slide-in 0.4s ease-out;
-        }
-
-        /* Planet Info Gradient */
-        .planet-gradient {
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(56, 189, 248, 0.1) 100%);
-        }
-
-        /* Custom Toggle Switch */
-        .toggle-switch {
-            width: 50px;
-            height: 24px;
-            background: rgba(100, 116, 139, 0.3);
-            border-radius: 12px;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .toggle-switch.active {
-            background: linear-gradient(90deg, #0ea5e9, #38bdf8);
-        }
-
-        .toggle-knob {
-            width: 18px;
-            height: 18px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 3px;
-            left: 3px;
+        /* Ana içerik scroll alanı */
+        .app-container {
+            flex: 1; overflow-y: auto; padding-bottom: var(--nav-height);
             transition: transform 0.3s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
-        .toggle-switch.active .toggle-knob {
-            transform: translateX(26px);
+        /* Animasyonlar */
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        
+        /* ==================== 2. ÖZEL BİLEŞENLER ==================== */
+        /* Toast Notification */
+        #toast-container {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+            pointer-events: none; width: 90%; max-width: 350px;
+        }
+        .toast {
+            background: rgba(0,0,0,0.85); color: white; padding: 12px 20px;
+            border-radius: 25px; font-size: 14px; text-align: center;
+            opacity: 0; transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-20px); backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Story Circle */
+        .story-ring {
+            background: linear-gradient(45deg, #8b5cf6, #d946ef);
+            padding: 2px;
+            border-radius: 50%;
+        }
+        .story-ring.seen {
+            background: var(--border);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .glass { padding: 1rem; }
-            .news-card { flex-direction: column; }
+        /* ==================== 3. VIEW YÖNETİMİ ==================== */
+        .view { display: none; width: 100%; height: 100%; overflow-y: auto; padding-bottom: var(--nav-height); }
+        .view.active { display: block; }
+        
+        /* Message Bubbles */
+        .message-bubble {
+            max-width: 75%; padding: 12px 16px; border-radius: 20px; font-size: 14px; line-height: 1.5;
+            position: relative; word-wrap: break-word; margin-bottom: 8px;
+        }
+        .msg-own { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .msg-other { align-self: flex-start; background: var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+        .msg-anon-label { font-size: 10px; opacity: 0.8; margin-bottom: 2px; display: block; font-weight: bold; }
+
+        /* Logo Font */
+        .font-logo { font-family: 'Courier New', Courier, monospace; letter-spacing: -1px; font-weight: 800; }
+
+        /* Anonim Checkbox */
+        .toggle-checkbox:checked {
+            right: 0; border-color: var(--primary);
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: var(--primary);
+        }
+
+        .story-viewer-progress {
+            height: 2px; background: rgba(255,255,255,0.3); flex: 1; margin: 0 2px; border-radius: 2px; overflow: hidden;
+        }
+        .story-viewer-bar {
+            height: 100%; background: white; width: 0%;
         }
     </style>
 </head>
-<body>
+<body data-theme="light">
 
-    <!-- Loading Screen -->
-    <div id="loading" class="fixed inset-0 bg-black z-[100] flex flex-col justify-center items-center transition-opacity duration-1000">
-        <div class="loader">
-            <div class="loader-core"></div>
-        </div>
-        <div class="mt-12 text-center">
-            <h1 class="text-4xl font-bold neon-text orbitron tracking-wider mb-4">BAŞLATILIYOR</h1>
-            <p id="loading-text" class="text-sm text-gray-400 orbitron">Evren yükleniyor... 0%</p>
-            <div class="w-64 h-1 bg-gray-800 rounded-full mt-4 mx-auto overflow-hidden">
-                <div id="loading-bar" class="h-full bg-gradient-to-r from-sky-500 to-blue-500 transition-all duration-300" style="width: 0%"></div>
-            </div>
-        </div>
-    </div>
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
 
-    <!-- Top Navigation -->
-    <nav class="fixed top-0 left-0 w-full z-40 px-4 md:px-6 py-4 pointer-events-none">
-        <div class="flex justify-between items-center">
-            <!-- Logo -->
-            <div class="pointer-events-auto glass rounded-2xl px-6 py-3 flex items-center gap-4 transition-all glass-hover">
-                <div class="relative">
-                    <i class="fas fa-globe-americas text-3xl text-sky-400 animate-rotate"></i>
-                    <div class="absolute inset-0 bg-sky-400 blur-xl opacity-50 animate-pulse-glow"></div>
-                </div>
-                <div>
-                    <h1 class="text-xl md:text-2xl font-bold neon-text orbitron">MUZCUK.SYS</h1>
-                    <p class="text-[10px] text-sky-300 tracking-[0.3em] orbitron">EXPLORER v3.0</p>
-                </div>
-            </div>
+    <!-- FIREBASE INIT & CORE LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+            signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut, updateProfile, deleteUser
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc,
+            collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, limit, arrayUnion, arrayRemove
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // setLogLevel('Debug'); // Debugging için
 
-            <!-- Menu -->
-            <div class="pointer-events-auto hidden md:flex glass rounded-full px-4 py-2 gap-2">
-                <button onclick="openModal('news')" class="btn-primary px-5 py-2 rounded-full text-gray-300 hover:text-white font-semibold text-xs uppercase tracking-wider flex items-center gap-2 relative">
-                    <i class="fas fa-rss"></i>
-                    <span>Haberler</span>
-                </button>
-                <div class="w-px bg-sky-500/30"></div>
-                <button onclick="openModal('gazette')" class="btn-primary px-5 py-2 rounded-full text-gray-300 hover:text-white font-semibold text-xs uppercase tracking-wider flex items-center gap-2 relative">
-                    <i class="fas fa-book-open"></i>
-                    <span>Ansiklopedi</span>
-                </button>
-                <div class="w-px bg-sky-500/30"></div>
-                <button onclick="openModal('about')" class="btn-primary px-5 py-2 rounded-full text-gray-300 hover:text-white font-semibold text-xs uppercase tracking-wider flex items-center gap-2 relative">
-                    <i class="fas fa-info-circle"></i>
-                    <span>Hakkında</span>
-                </button>
-            </div>
-        </div>
-    </nav>
+        // Global Variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
 
-    <!-- 3D Canvas -->
-    <div id="canvas-container"></div>
+        let app, auth, db, storage;
+        let userId = null;
+        let unsubscribeListeners = [];
 
-    <!-- Info Panel -->
-    <div id="info-panel" class="fixed top-24 right-0 w-[95%] md:w-[450px] max-h-[calc(100vh-140px)] glass z-30 translate-x-[110%] transition-all duration-500 rounded-l-3xl shadow-2xl">
-        <div class="relative h-full flex flex-col p-6">
-            <button onclick="closeInfo()" class="absolute top-4 right-4 text-sky-400 hover:text-white hover:rotate-90 transition-all duration-300 z-10">
-                <i class="fas fa-times text-2xl"></i>
-            </button>
+        // UTILS
+        window.showToast = (msg) => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
             
-            <!-- Header -->
-            <div class="border-b border-sky-500/30 pb-6 mb-6 planet-gradient rounded-2xl p-4 -m-2">
-                <h2 id="object-name" class="text-4xl md:text-5xl font-bold neon-text orbitron uppercase mb-3">PLANET</h2>
-                <div class="flex flex-wrap items-center gap-2">
-                    <span id="object-type" class="badge px-3 py-1 rounded-full text-xs font-semibold orbitron">GEZEGEN</span>
-                    <div class="flex items-center gap-1 text-xs text-gray-400">
-                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse-glow"></div>
-                        <span class="orbitron">VERİ AKIŞI AKTİF</span>
-                    </div>
-                </div>
-            </div>
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+        
+        const timeSince = (date) => {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " yıl önce";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " ay önce";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " gün önce";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " saat önce";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " dakika önce";
+            return "Şimdi";
+        };
 
-            <!-- Content -->
-            <div id="info-content" class="flex-grow overflow-y-auto custom-scroll pr-2 space-y-6 text-gray-300">
-                <!-- JS ile doldurulacak -->
-            </div>
-            
-            <!-- Stats -->
-            <div class="mt-6 grid grid-cols-2 gap-3 pt-6 border-t border-sky-500/30">
-                <div class="glass-hover glass p-4 rounded-xl transition-all">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="fas fa-temperature-high text-orange-400"></i>
-                        <span class="text-[10px] text-gray-400 uppercase orbitron">Sıcaklık</span>
-                    </div>
-                    <div id="stat-temp" class="text-sky-300 font-bold text-lg neon-text orbitron">--</div>
-                </div>
-                <div class="glass-hover glass p-4 rounded-xl transition-all">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="fas fa-weight text-purple-400"></i>
-                        <span class="text-[10px] text-gray-400 uppercase orbitron">Yerçekimi</span>
-                    </div>
-                    <div id="stat-gravity" class="text-sky-300 font-bold text-lg neon-text orbitron">--</div>
-                </div>
-            </div>
-        </div>
-    </div>
+        // FIREBASE INIT
+        const initFirebase = async () => {
+            if (Object.keys(firebaseConfig).length === 0) {
+                console.error("Firebase config eksik.");
+                return;
+            }
 
-    <!-- Control Panel -->
-    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-        <div class="glass px-8 py-4 rounded-full flex flex-col md:flex-row items-center gap-6 shadow-2xl">
-            <!-- Time Control -->
-            <div class="flex flex-col w-40">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-[10px] text-sky-400 font-bold uppercase orbitron">Zaman Hızı</label>
-                    <span id="speed-display" class="text-sm font-bold neon-text orbitron">1.0x</span>
-                </div>
-                <input type="range" id="time-scale" min="0" max="3" step="0.1" value="0.5" 
-                       class="w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer accent-sky-500">
-            </div>
-            
-            <div class="hidden md:block w-px h-10 bg-sky-500/30"></div>
-            
-            <!-- Reset Button -->
-            <button onclick="resetCamera()" class="btn-primary glass-hover px-6 py-3 rounded-full transition-all font-semibold uppercase text-sm flex items-center gap-3 relative">
-                <i class="fas fa-sync-alt"></i>
-                <span class="orbitron">Sıfırla</span>
-            </button>
-        </div>
-    </div>
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
 
-    <!-- Mobile Menu -->
-    <div class="md:hidden fixed bottom-24 right-6 z-30 pointer-events-auto">
-        <button onclick="toggleMobileMenu()" class="glass w-14 h-14 rounded-full flex items-center justify-center text-sky-400 hover:text-white transition-all shadow-lg">
-            <i class="fas fa-bars text-xl"></i>
-        </button>
-        <div id="mobile-menu" class="absolute bottom-16 right-0 glass rounded-2xl p-3 space-y-2 hidden">
-            <button onclick="openModal('news')" class="w-full px-4 py-2 text-left text-sm hover:bg-sky-500/20 rounded-lg transition-all flex items-center gap-2">
-                <i class="fas fa-rss"></i> Haberler
-            </button>
-            <button onclick="openModal('gazette')" class="w-full px-4 py-2 text-left text-sm hover:bg-sky-500/20 rounded-lg transition-all flex items-center gap-2">
-                <i class="fas fa-book-open"></i> Ansiklopedi
-            </button>
-            <button onclick="openModal('about')" class="w-full px-4 py-2 text-left text-sm hover:bg-sky-500/20 rounded-lg transition-all flex items-center gap-2">
-                <i class="fas fa-info-circle"></i> Hakkında
-            </button>
-        </div>
-    </div>
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        await ensureUserProfile(user);
+                        if (window.app && window.app.loadApp) {
+                            window.app.loadApp(userId);
+                        }
+                    } else {
+                        userId = null;
+                        if (window.app && window.app.resetState) {
+                            window.app.resetState();
+                        }
+                    }
+                });
 
-    <!-- Modal -->
-    <div id="modal-overlay" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 hidden flex justify-center items-center p-4">
-        <div id="modal-container" class="modal-content glass w-full max-w-6xl max-h-[90vh] rounded-3xl flex flex-col relative overflow-hidden opacity-0 scale-95 transition-all duration-300 neon-border">
-            <!-- Header -->
-            <div class="p-6 md:p-8 border-b border-sky-500/30 flex justify-between items-center planet-gradient">
-                <h2 id="modal-title" class="text-2xl md:text-4xl font-bold neon-text orbitron uppercase tracking-wider flex items-center gap-3">
-                    <i class="fas fa-star"></i> BAŞLIK
-                </h2>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-white hover:rotate-90 transition-all duration-300">
-                    <i class="fas fa-times text-3xl"></i>
-                </button>
-            </div>
-            <!-- Body -->
-            <div id="modal-body" class="p-6 md:p-8 overflow-y-auto custom-scroll flex-grow">
-                <!-- Dynamic Content -->
-            </div>
-        </div>
-    </div>
+                const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+                if (authToken) {
+                    await signInWithCustomToken(auth, authToken);
+                } else {
+                    // Anonim giriş, eğer özel token yoksa
+                    await signInAnonymously(auth);
+                }
 
-    <script>
-        // ========== KONFİGÜRASYON ==========
-        const config = {
-            scene: {
-                fogDensity: 0.0008,
-                ambientLight: 0x404040,
-                sunLightIntensity: 2.5
-            },
-            camera: {
-                fov: 60,
-                near: 0.1,
-                far: 3000,
-                startPos: { x: 0, y: 80, z: 120 }
-            },
-            controls: {
-                dampingFactor: 0.05,
-                maxDistance: 500,
-                minDistance: 8
+            } catch (error) {
+                console.error("Firebase Başlatma Hatası:", error);
+                window.showToast("Bağlantı hatası: " + error.message);
             }
         };
 
-        // ========== TEXTURE YÖNETİMİ ==========
-        const textureManager = {
-            loaded: {},
-            loader: null,
+        const ensureUserProfile = async (user) => {
+            const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+            const snap = await getDoc(userRef);
             
-            init(manager) {
-                this.loader = new THREE.TextureLoader(manager);
+            if (!snap.exists()) {
+                const isAnon = user.isAnonymous;
+                const baseName = isAnon ? 'Ghost' : (user.email ? user.email.split('@')[0] : 'User');
+                const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                
+                await setDoc(userRef, {
+                    username: `${baseName}_${randomSuffix}`,
+                    email: user.email || null,
+                    avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+                    fullname: isAnon ? 'Anonim Gezgin' : baseName,
+                    bio: 'Gramano dünyasında bir gezgin.',
+                    isPrivate: false,
+                    // Stat counts for firestore rule compliance
+                    followersCount: 0,
+                    followingCount: 0,
+                    postsCount: 0,
+                    anonMessagesCount: 0,
+                    createdAt: serverTimestamp()
+                });
+            }
+        };
+
+        window.handleAuth = async (isRegister) => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            
+            if (!email || !password || password.length < 6) {
+                window.showToast("E-posta ve en az 6 haneli şifre gerekli.");
+                return;
+            }
+
+            try {
+                if (isRegister) {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+            } catch (error) {
+                let msg = "İşlem başarısız.";
+                if (error.code === 'auth/email-already-in-use') msg = "Bu e-posta zaten kayıtlı.";
+                if (error.code === 'auth/invalid-credential') msg = "Bilgiler hatalı.";
+                window.showToast(msg);
+            }
+        };
+        
+        // --- APP STATE & LISTENERS ---
+        window.app = {
+            currentUserData: null,
+            posts: [],
+            stories: [],
+            chats: [],
+            activeChatMessages: [],
+            activeChatId: null,
+            
+            resetState: () => {
+                unsubscribeListeners.forEach(u => u());
+                unsubscribeListeners = [];
+                document.getElementById('main-app').style.display = 'none';
+                document.getElementById('auth-view').style.display = 'flex';
+            },
+
+            loadApp: (uid) => {
+                document.getElementById('auth-view').style.display = 'none';
+                document.getElementById('main-app').style.display = 'flex';
+                window.app.startListeners();
+                window.app.switchTab('feed-view');
+            },
+
+            startListeners: () => {
+                // Clear existing listeners
+                unsubscribeListeners.forEach(u => u());
+                unsubscribeListeners = [];
+
+                // 1. Profile Listener (Private Data)
+                const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                unsubscribeListeners.push(onSnapshot(profileRef, (snap) => {
+                    if (snap.exists()) {
+                        window.app.currentUserData = { id: userId, ...snap.data() };
+                        window.app.updateProfileUI();
+                    }
+                }));
+
+                // 2. Posts Listener (Public Data)
+                const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
+                const qPosts = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
+                
+                unsubscribeListeners.push(onSnapshot(qPosts, async (snap) => {
+                    const postData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    // Fetch and embed usernames/avatars for anonymous posts if needed (not implemented for simplicity)
+                    window.app.posts = postData;
+                    window.app.renderFeed();
+                    window.app.renderExplore();
+                    window.app.renderProfilePosts();
+                }));
+
+                // 3. Stories Listener (Public Data) - Filter for 24h client-side
+                const storiesRef = collection(db, 'artifacts', appId, 'public', 'data', 'stories');
+                const qStories = query(storiesRef, orderBy('createdAt', 'desc'), limit(50));
+                
+                unsubscribeListeners.push(onSnapshot(qStories, (snap) => {
+                    const now = Date.now();
+                    const oneDay = 24 * 60 * 60 * 1000;
+                    window.app.stories = snap.docs
+                        .map(d => ({ id: d.id, ...d.data() }))
+                        .filter(s => s.createdAt && (now - s.createdAt.toMillis()) < oneDay);
+                    window.app.renderStories();
+                }));
+
+                // 4. Chats Listener (Public Data - User specific filter in JS for simplicity/security rule flexibility)
+                const chatsRef = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
+                // Querying all chats and filtering client side (Bad for scale, but robust for canvas)
+                unsubscribeListeners.push(onSnapshot(chatsRef, (snap) => {
+                    window.app.chats = snap.docs.map(d => ({id: d.id, ...d.data()}))
+                        .filter(c => c.participants && c.participants.includes(userId))
+                        // Sort by last message time if available
+                        .sort((a, b) => (b.lastMessageTime?.seconds || 0) - (a.lastMessageTime?.seconds || 0));
+                    window.app.renderChatList();
+                }));
+            },
+
+            // --- UI RENDERING ---
+            updateProfileUI: () => {
+                const u = window.app.currentUserData;
+                if (!u) return;
+                
+                document.getElementById('nav-profile-img').src = u.avatar;
+                
+                // Profile Page
+                document.getElementById('p-username').innerText = u.username;
+                document.getElementById('p-fullname').innerText = u.fullname;
+                document.getElementById('p-bio').innerText = u.bio;
+                document.getElementById('p-avatar').src = u.avatar;
+                
+                // Stats
+                document.getElementById('stat-anon').innerText = u.anonMessagesCount || 0;
+                // Since posts are public, counting client side is safe
+                document.getElementById('stat-posts').innerText = window.app.posts.filter(p => p.userId === userId).length;
+                document.getElementById('stat-followers').innerText = u.followersCount || 0;
+                document.getElementById('stat-following').innerText = u.followingCount || 0;
+
+                // Privacy Indicator
+                const privIcon = u.isPrivate ? '<i data-lucide="lock" class="w-3 h-3 inline ml-1"></i>' : '';
+                document.getElementById('p-fullname').innerHTML = u.fullname + privIcon;
+                
+                // Show user ID for multi-user purposes
+                document.getElementById('p-uid-info').innerText = 'ID: ' + userId;
+                
+                lucide.createIcons();
+            },
+
+            renderFeed: () => {
+                const container = document.getElementById('feed-container');
+                container.innerHTML = '';
+                
+                if (window.app.posts.length === 0) {
+                    container.innerHTML = `<div class="flex flex-col items-center justify-center p-10 text-gray-500 opacity-60"><i data-lucide="ghost" class="w-16 h-16 mb-4"></i><p>Henüz bir gönderi yok.</p></div>`;
+                    lucide.createIcons();
+                    return;
+                }
+
+                window.app.posts.forEach(post => {
+                    const isAnon = post.isAnonymous;
+                    const username = isAnon ? 'Gizli Üye' : (post.username || 'Kullanıcı');
+                    const avatar = isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : (post.userAvatar || 'https://placehold.co/40x40');
+                    const time = post.createdAt ? timeSince(new Date(post.createdAt.seconds * 1000)) : 'Az önce';
+                    
+                    const isLiked = post.likes && post.likes[userId];
+                    const likeIcon = isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400';
+                    const likeCount = post.likeCount || 0;
+
+                    let contentHtml = '';
+                    let contentClass = 'aspect-square';
+                    if (post.type === 'video') {
+                        contentHtml = `<video src="${post.imageUrl}" controls class="w-full h-full object-cover bg-black"></video>`;
+                    } else if (post.imageUrl) {
+                        contentHtml = `<img src="${post.imageUrl}" class="w-full h-full object-cover">`;
+                    } else {
+                        // Text only
+                        contentHtml = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-lg">${post.caption}</div>`;
+                        contentClass = 'min-h-[200px] h-auto p-4';
+                    }
+
+                    const el = document.createElement('div');
+                    el.className = 'bg-white dark:bg-slate-900 mb-4 border-b border-gray-100 dark:border-gray-800 pb-2';
+                    el.innerHTML = `
+                        <div class="flex items-center justify-between p-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full overflow-hidden border ${isAnon ? 'border-purple-500 bg-purple-100' : 'border-gray-200'}">
+                                    <img src="${avatar}" class="w-full h-full object-cover p-${isAnon ? '1' : '0'}">
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm flex items-center gap-1">
+                                        ${username}
+                                        ${isAnon ? '<i data-lucide="mask" class="w-3 h-3 text-purple-500"></i>' : ''}
+                                    </div>
+                                    <div class="text-[10px] text-gray-400 flex items-center gap-1">
+                                        ${post.location ? `<i data-lucide="map-pin" class="w-3 h-3"></i> ${post.location} •` : ''} 
+                                        ${time}
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="window.app.reportContent('${post.id}', 'post')" class="text-gray-400 hover:text-red-500"><i data-lucide="flag" class="w-5 h-5"></i></button>
+                        </div>
+                        
+                        <div class="relative bg-gray-100 dark:bg-black ${contentClass} overflow-hidden flex items-center justify-center">
+                            ${contentHtml}
+                            ${isAnon ? '<div class="absolute bottom-3 right-3 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"><i data-lucide="eye-off" class="w-3 h-3"></i> Gizli</div>' : ''}
+                        </div>
+
+                        <div class="p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex gap-4">
+                                    <button onclick="window.app.toggleLike('${post.id}')"><i data-lucide="heart" class="w-6 h-6 hover:text-red-500 transition-colors ${likeIcon}"></i></button>
+                                    <button onclick="window.app.openComments('${post.id}')"><i data-lucide="message-circle" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i></button>
+                                    <button onclick="window.showToast('Paylaşım simülasyonu')"><i data-lucide="send" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i></button>
+                                </div>
+                                <button onclick="window.showToast('Kaydedildi')"><i data-lucide="bookmark" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i></button>
+                            </div>
+                            <div class="font-semibold text-sm mb-1 dark:text-white">${likeCount} beğenme</div>
+                            <div class="text-sm dark:text-gray-300">
+                                <span class="font-bold mr-1 dark:text-white">${username}</span>
+                                <span class="opacity-90">${post.type !== 'text' ? post.caption : ''}</span>
+                            </div>
+                            <div class="text-xs text-purple-500 mt-1">${post.hashtag || ''}</div>
+                            <button onclick="window.app.openComments('${post.id}')" class="text-xs text-gray-400 mt-1 cursor-pointer">Yorumları gör...</button>
+                        </div>
+                    `;
+                    container.appendChild(el);
+                });
+                lucide.createIcons();
+            },
+
+            renderStories: () => {
+                const cont = document.getElementById('stories-container');
+                let html = `
+                     <div class="flex flex-col items-center gap-1 cursor-pointer min-w-[70px]" onclick="window.app.openUpload('story')">
+                        <div class="w-[64px] h-[64px] rounded-full p-[2px] border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center relative">
+                            <img src="${window.app.currentUserData?.avatar || ''}" class="w-full h-full rounded-full object-cover opacity-80">
+                            <div class="absolute inset-0 flex items-center justify-center"><i data-lucide="plus" class="w-6 h-6 text-white bg-blue-500 rounded-full p-1"></i></div>
+                        </div>
+                        <span class="text-xs truncate w-full text-center dark:text-white">Sen</span>
+                    </div>
+                `;
+                
+                const userStories = {};
+                window.app.stories.forEach(s => {
+                    if(s.userId === userId) return; // Kendi hikayeni atla
+                    if(!userStories[s.userId]) userStories[s.userId] = { user: s.username, avatar: s.userAvatar, items: [] };
+                    userStories[s.userId].items.push(s);
+                });
+
+                Object.values(userStories).forEach(u => {
+                    html += `
+                        <div class="flex flex-col items-center gap-1 cursor-pointer min-w-[70px]" onclick='window.app.viewStory(${JSON.stringify(u.items).replace(/'/g, "&#39;")})'>
+                            <div class="w-[68px] h-[68px] story-ring">
+                                <img src="${u.avatar}" class="w-full h-full rounded-full border-2 border-white dark:border-black object-cover">
+                            </div>
+                            <span class="text-xs truncate w-full text-center dark:text-white">${u.user}</span>
+                        </div>
+                    `;
+                });
+                cont.innerHTML = html;
+                lucide.createIcons();
+            },
+
+            renderExplore: () => {
+                const grid = document.getElementById('explore-grid');
+                grid.innerHTML = '';
+                window.app.posts.forEach((post, i) => {
+                    const div = document.createElement('div');
+                    const isLarge = i % 5 === 0;
+                    div.className = `relative overflow-hidden cursor-pointer bg-gray-100 dark:bg-gray-800 aspect-square ${isLarge ? 'col-span-2 row-span-2' : ''}`;
+                    const content = post.type === 'video' 
+                        ? `<video src="${post.imageUrl}" class="w-full h-full object-cover" muted></video>`
+                        : (post.imageUrl ? `<img src="${post.imageUrl}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-purple-500 flex items-center justify-center text-white text-xs p-2">${post.caption}</div>`);
+                    
+                    div.innerHTML = content;
+                    grid.appendChild(div);
+                });
+            },
+
+            renderProfilePosts: () => {
+                const container = document.getElementById('profile-grid');
+                container.innerHTML = '';
+                const myPosts = window.app.posts.filter(p => p.userId === userId);
+                myPosts.forEach(post => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-square relative overflow-hidden bg-gray-100 dark:bg-gray-800';
+                    div.innerHTML = post.imageUrl 
+                        ? `<img src="${post.imageUrl}" class="w-full h-full object-cover">`
+                        : `<div class="w-full h-full bg-indigo-500 flex items-center justify-center text-white text-xs p-2">${post.caption}</div>`;
+                    container.appendChild(div);
+                });
+            },
+
+            renderChatList: () => {
+                const container = document.getElementById('chat-list');
+                container.innerHTML = '';
+
+                if (window.app.chats.length === 0) {
+                    container.innerHTML = `<div class="text-center text-gray-500 mt-10"><i data-lucide="message-square" class="w-8 h-8 mx-auto mb-2"></i><p>Henüz bir sohbetin yok.</p></div>`;
+                    return;
+                }
+
+                window.app.chats.forEach(chat => {
+                    // Diğer katılımcıyı bul
+                    const otherUserId = chat.participants.find(id => id !== userId);
+                    const otherName = chat.names && chat.names[otherUserId] ? chat.names[otherUserId] : 'Grup Sohbeti';
+                    const lastMsg = chat.lastMessage ? chat.lastMessage : 'Mesaj yok.';
+                    const lastTime = chat.lastMessageTime ? timeSince(new Date(chat.lastMessageTime.seconds * 1000)) : '';
+
+                    const el = document.createElement('div');
+                    el.className = 'flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800';
+                    el.onclick = () => window.app.openChat(chat.id, otherName);
+                    el.innerHTML = `
+                        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${otherUserId || 'chat'}" class="w-12 h-12 rounded-full object-cover mr-3">
+                        <div class="flex-1">
+                            <div class="font-semibold dark:text-white">${otherName}</div>
+                            <div class="text-sm text-gray-500 truncate">${lastMsg}</div>
+                        </div>
+                        <div class="text-xs text-gray-400">${lastTime}</div>
+                    `;
+                    container.appendChild(el);
+                });
+            },
+
+            renderChatMessages: () => {
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+                
+                window.app.activeChatMessages.forEach(msg => {
+                    const isOwn = msg.senderId === userId;
+                    const isAnon = msg.isAnonymous;
+                    const senderName = isAnon ? 'Gizli Üye' : (isOwn ? window.app.currentUserData.username : msg.senderName);
+                    const time = msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    
+                    let content;
+                    if (msg.type === 'text') {
+                        content = `<p class="dark:text-white">${msg.content}</p>`;
+                    } else if (msg.type === 'image') {
+                        content = `<img src="${msg.content}" class="max-w-xs max-h-48 rounded-lg object-contain">`;
+                    }
+                    
+                    const el = document.createElement('div');
+                    el.className = `flex ${isOwn ? 'justify-end' : 'justify-start'} w-full`;
+                    el.innerHTML = `
+                        <div class="message-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
+                            ${isAnon && !isOwn ? `<span class="msg-anon-label flex items-center gap-1 text-purple-200 dark:text-purple-400"><i data-lucide="mask" class="w-3 h-3"></i> Anonim</span>` : ''}
+                            ${content}
+                            <div class="text-[10px] ${isOwn ? 'text-purple-200' : 'text-gray-400'} text-right mt-1">${time}</div>
+                        </div>
+                    `;
+                    container.appendChild(el);
+                });
+                
+                // Scroll to bottom
+                container.scrollTop = container.scrollHeight;
+                lucide.createIcons();
+            },
+
+            // --- ACTIONS ---
+            // FILE UPLOAD AND POST/STORY SHARE
+            uploadFile: null,
+            uploadType: 'post',
+
+            openUpload: (type = 'post') => {
+                document.getElementById('upload-modal').style.display = 'flex';
+                document.getElementById('upload-type-title').innerText = type === 'story' ? 'Yeni Hikaye (24s)' : 'Yeni Gönderi';
+                window.app.uploadType = type;
+                document.getElementById('file-input').value = '';
+                document.getElementById('preview-container').innerHTML = '';
+                document.getElementById('post-caption').value = '';
+                window.app.uploadFile = null;
             },
             
-            load(url, fallbackColor) {
-                if (!url) return null;
+            closeUpload: () => {
+                document.getElementById('upload-modal').style.display = 'none';
+                document.getElementById('preview-container').innerHTML = '';
+                document.getElementById('file-input').value = '';
+                window.app.uploadFile = null;
+            },
+
+            previewFile: (input) => {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    window.app.uploadFile = file;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const container = document.getElementById('preview-container');
+                        if (file.type.startsWith('video')) {
+                            container.innerHTML = `<video src="${e.target.result}" controls class="w-full max-h-60 rounded-lg"></video>`;
+                        } else {
+                            container.innerHTML = `<img src="${e.target.result}" class="w-full max-h-60 object-contain rounded-lg">`;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            },
+
+            sharePost: async () => {
+                const caption = document.getElementById('post-caption').value;
+                const isAnon = document.getElementById('anon-check').checked;
+                const location = document.getElementById('location-input').value;
+                const hashtag = document.getElementById('hashtag-input').value.split(',').map(tag => tag.trim()).filter(tag => tag.startsWith('#')).join(' ');
                 
+                if (!window.app.uploadFile && !caption) {
+                    window.showToast("İçerik gerekli.");
+                    return;
+                }
+                
+                let mediaUrl = null;
+                let mediaType = 'text';
+
+                // File Upload Simulation (Using Data URL for demo, in production use Firebase Storage)
+                if (window.app.uploadFile) {
+                    const file = window.app.uploadFile;
+                    mediaType = file.type.startsWith('video') ? 'video' : 'image';
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    await new Promise(r => reader.onload = r);
+                    mediaUrl = reader.result;
+                    
+                    // REAL STORAGE UPLOAD (Disabled for single-file mandate)
+                    /*
+                    const storageRef = ref(storage, `posts/${userId}/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    mediaUrl = await getDownloadURL(snapshot.ref);
+                    */
+                }
+
                 try {
-                    return this.loader.load(
-                        url,
-                        (texture) => {
-                            texture.anisotropy = 16;
-                            this.loaded[url] = texture;
-                        },
-                        undefined,
-                        (error) => {                            console.warn(`Texture yüklenemedi: ${url}`, error);
-                            return null;
-                        }
-                    );
-                } catch (error) {
-                    console.warn(`Texture yüklenemedi: ${url}`, error);
-                    return null;
+                    const collectionName = window.app.uploadType === 'story' ? 'stories' : 'posts';
+                    const data = {
+                        userId: userId,
+                        username: window.app.currentUserData.username,
+                        userAvatar: window.app.currentUserData.avatar,
+                        imageUrl: mediaUrl,
+                        type: mediaType,
+                        caption: caption,
+                        location: location,
+                        hashtag: hashtag,
+                        isAnonymous: isAnon,
+                        likes: {},
+                        likeCount: 0,
+                        createdAt: serverTimestamp()
+                    };
+
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
+                    window.showToast(window.app.uploadType === 'story' ? "Hikaye Paylaşıldı!" : "Gönderi Paylaşıldı!");
+                    window.app.closeUpload();
+                } catch (e) {
+                    console.error("Paylaşım Hatası:", e);
+                    window.showToast("Hata: Paylaşılamadı.");
                 }
-            }
-        };
+            },
 
-        // ========== GÜNEŞ SİSTEMİ VERİLERİ ==========
-        const solarSystemData = {
-            stars: [
-                {
-                    id: "sun",
-                    name: "GÜNEŞ",
-                    type: "YILDIZ",
-                    radius: 20,
-                    distance: 0,
-                    rotationSpeed: 0.002,
-                    color: 0xffd700,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/sun.jpg",
-                    temperature: "5,778 K",
-                    gravity: "274 m/s²",
-                    description: "Güneş Sistemimizin merkezindeki G2V tipi sarı cüce yıldız. Hidrojen ve helyum füzyonuyla enerji üretir.",
-                    facts: [
-                        "Kütlesi sistemin %99.86'sını oluşturur",
-                        "Çapı Dünya'nın 109 katıdır",
-                        "Yüzey sıcaklığı 5,778 Kelvin'dir",
-                        "4.6 milyar yaşındadır"
-                    ]
-                }
-            ],
-            planets: [
-                {
-                    id: "mercury",
-                    name: "MERKÜR",
-                    type: "KAYALIK GEZEGEN",
-                    radius: 3.8,
-                    distance: 40,
-                    rotationSpeed: 0.004,
-                    orbitSpeed: 0.02,
-                    color: 0x8c7853,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/mercury.jpg",
-                    temperature: "167°C",
-                    gravity: "3.7 m/s²",
-                    description: "Güneş'e en yakın ve en küçük gezegen. Atmosferi yok denecek kadar incedir.",
-                    facts: [
-                        "Güneş sistemindeki en hızlı gezegen",
-                        "Gündüzleri 430°C, geceleri -180°C",
-                        "Manyetik alanı Dünya'nın %1'i kadar",
-                        "88 günde Güneş etrafında tur atar"
-                    ]
-                },
-                {
-                    id: "venus",
-                    name: "VENÜS",
-                    type: "KAYALIK GEZEGEN",
-                    radius: 9.4,
-                    distance: 60,
-                    rotationSpeed: 0.002,
-                    orbitSpeed: 0.015,
-                    color: 0xe39e54,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/venus.jpg",
-                    temperature: "464°C",
-                    gravity: "8.87 m/s²",
-                    description: "Yoğun karbondioksit atmosferi ve asit bulutlarıyla 'cehennem gezegen' olarak bilinir.",
-                    facts: [
-                        "En sıcak gezegen (sera etkisi)",
-                        "Geriye doğru döner (retrograde rotation)",
-                        "Güneş ve Ay'dan sonra en parlak gök cismi",
-                        "Yüzeyi kurşunu eritecek kadar sıcak"
-                    ]
-                },
-                {
-                    id: "earth",
-                    name: "DÜNYA",
-                    type: "KAYALIK GEZEGEN",
-                    radius: 10,
-                    distance: 90,
-                    rotationSpeed: 0.01,
-                    orbitSpeed: 0.01,
-                    color: 0x223355,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth.jpg",
-                    temperature: "15°C",
-                    gravity: "9.807 m/s²",
-                    description: "Bildiğimiz tek yaşam barındıran gezegen. Suyun sıvı halde bulunabildiği tek yer.",
-                    facts: [
-                        "Yaşam barındıran tek gezegen",
-                        "Yüzeyinin %71'i suyla kaplı",
-                        "Tek doğal uydusu Ay var",
-                        "Atmosferi %78 nitrojen, %21 oksijen"
-                    ],
-                    moons: [
-                        {
-                            id: "moon",
-                            name: "AY",
-                            radius: 2.7,
-                            distance: 15,
-                            orbitSpeed: 0.03,
-                            texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/moon.jpg"
-                        }
-                    ]
-                },
-                {
-                    id: "mars",
-                    name: "MARS",
-                    type: "KAYALIK GEZEGEN",
-                    radius: 5.3,
-                    distance: 120,
-                    rotationSpeed: 0.008,
-                    orbitSpeed: 0.008,
-                    color: 0xcd5c5c,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/mars.jpg",
-                    temperature: "-65°C",
-                    gravity: "3.721 m/s²",
-                    description: "Kızıl gezegen. Yüzeyindeki demir oksit nedeniyle kırmızı renkte görünür.",
-                    facts: [
-                        "Güneş sistemindeki en yüksek dağ (Olympus Mons)",
-                        "İki uydusu var: Phobos ve Deimos",
-                        "Gün uzunluğu Dünya'ya çok yakın",
-                        "İnce karbondioksit atmosferi var"
-                    ]
-                },
-                {
-                    id: "jupiter",
-                    name: "JÜPİTER",
-                    type: "GAZ DEVRİ",
-                    radius: 22,
-                    distance: 180,
-                    rotationSpeed: 0.02,
-                    orbitSpeed: 0.004,
-                    color: 0xd8ca9d,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/jupiter.jpg",
-                    temperature: "-110°C",
-                    gravity: "24.79 m/s²",
-                    description: "Güneş sisteminin en büyük gezegeni. Büyük Kırmızı Leke fırtınasıyla ünlü.",
-                    facts: [
-                        "Kütlesi diğer tüm gezegenlerin 2.5 katı",
-                        "79 bilinen uydusu var",
-                        "Güneş sisteminin en büyük manyetik alanı",
-                        "Gün sadece 10 saat sürer"
-                    ]
-                },
-                {
-                    id: "saturn",
-                    name: "SATÜRN",
-                    type: "GAZ DEVRİ",
-                    radius: 18.5,
-                    distance: 240,
-                    rotationSpeed: 0.018,
-                    orbitSpeed: 0.003,
-                    color: 0xe3cda5,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/saturn.jpg",
-                    temperature: "-140°C",
-                    gravity: "10.44 m/s²",
-                    description: "Göz alıcı halkalarıyla ünlü gaz devi. Yoğunluğu sudan daha azdır.",
-                    facts: [
-                        "En belirgin halka sistemine sahip",
-                        "82 bilinen uydusu var",
-                        "Yoğunluğu sudan az (yüzerdi)",
-                        "Halkalar buz ve kaya parçalarından oluşur"
-                    ]
-                },
-                {
-                    id: "uranus",
-                    name: "URANÜS",
-                    type: "BUZ DEVRİ",
-                    radius: 16,
-                    distance: 280,
-                    rotationSpeed: 0.012,
-                    orbitSpeed: 0.002,
-                    color: 0x4fd0e7,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/uranus.jpg",
-                    temperature: "-195°C",
-                    gravity: "8.87 m/s²",
-                    description: "Yana yatmış ekseniyle diğer gezegenlerden farklıdır. Donmuş metan atmosferi mavi-yeşil renk verir.",
-                    facts: [
-                        "Ekseni 98 derece yana yatmış",
-                        "27 bilinen uydusu var",
-                        "William Herschel tarafından keşfedildi",
-                        "En soğuk gezegen (-224°C rekor)"
-                    ]
-                },
-                {
-                    id: "neptune",
-                    name: "NEPTÜN",
-                    type: "BUZ DEVRİ",
-                    radius: 15.5,
-                    distance: 320,
-                    rotationSpeed: 0.01,
-                    orbitSpeed: 0.001,
-                    color: 0x4b70dd,
-                    texture: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/neptune.jpg",
-                    temperature: "-200°C",
-                    gravity: "11.15 m/s²",
-                    description: "En uzak gezegen. Süpersonik rüzgarları ve Büyük Koyu Leke fırtınasıyla bilinir.",
-                    facts: [
-                        "En uzak gezegen (Pluto cüce gezegen)",
-                        "14 bilinen uydusu var",
-                        "Süpersonik rüzgarlar (2,100 km/s)",
-                        "Matematiksel tahminle keşfedildi"
-                    ]
-                }
-            ]
-        };
+            // LIKES AND COMMENTS
+            toggleLike: async (postId) => {
+                const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
+                const post = window.app.posts.find(p => p.id === postId);
+                if (!post) return;
 
-        // ========== THREE.JS DEĞİŞKENLERİ ==========
-        let scene, camera, renderer, controls;
-        let solarObjects = {};
-        let timeScale = 0.5;
-        let selectedObject = null;
-        let loadingManager, isInitialized = false;
-
-        // ========== YÜKLEME YÖNETİCİSİ ==========
-        function initLoadingManager() {
-            loadingManager = new THREE.LoadingManager();
-            
-            loadingManager.onStart = function(url, itemsLoaded, itemsTotal) {
-                console.log(`Yükleniyor: ${url} (${itemsLoaded}/${itemsTotal})`);
-            };
-            
-            loadingManager.onLoad = function() {
-                console.log('Tüm kaynaklar yüklendi!');
-                setTimeout(() => {
-                    document.getElementById('loading').style.opacity = '0';
-                    setTimeout(() => {
-                        document.getElementById('loading').style.display = 'none';
-                        initThreeJS();
-                    }, 1000);
-                }, 500);
-            };
-            
-            loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
-                const percent = (itemsLoaded / itemsTotal) * 100;
-                document.getElementById('loading-bar').style.width = `${percent}%`;
-                document.getElementById('loading-text').textContent = `Evren yükleniyor... ${Math.round(percent)}%`;
-            };
-            
-            loadingManager.onError = function(url) {
-                console.error(`Yükleme hatası: ${url}`);
-            };
-        }
-
-        // ========== THREE.JS BAŞLATMA ==========
-        function initThreeJS() {
-            if (isInitialized) return;
-            
-            // Sahne
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000814, config.scene.fogDensity);
-            
-            // Kamera
-            camera = new THREE.PerspectiveCamera(
-                config.camera.fov,
-                window.innerWidth / window.innerHeight,
-                config.camera.near,
-                config.camera.far
-            );
-            camera.position.set(
-                config.camera.startPos.x,
-                config.camera.startPos.y,
-                config.camera.startPos.z
-            );
-            
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: true,
-                alpha: true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            
-            const canvasContainer = document.getElementById('canvas-container');
-            canvasContainer.appendChild(renderer.domElement);
-            
-            // Kontroller
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = config.controls.dampingFactor;
-            controls.maxDistance = config.controls.maxDistance;
-            controls.minDistance = config.controls.minDistance;
-            controls.autoRotate = false;
-            
-            // Işıklandırma
-            setupLighting();
-            
-            // Güneş Sistemi
-            createSolarSystem();
-            
-            // Olay Dinleyicileri
-            setupEventListeners();
-            
-            // Animasyon
-            animate();
-            
-            isInitialized = true;
-        }
-
-        // ========== IŞIKLANDIRMA ==========
-        function setupLighting() {
-            // Ambient Light
-            const ambientLight = new THREE.AmbientLight(config.scene.ambientLight, 0.4);
-            scene.add(ambientLight);
-            
-            // Directional Light (Güneş)
-            const sunLight = new THREE.DirectionalLight(0xffffff, config.scene.sunLightIntensity);
-            sunLight.position.set(50, 50, 50);
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 2048;
-            sunLight.shadow.mapSize.height = 2048;
-            sunLight.shadow.camera.near = 0.5;
-            sunLight.shadow.camera.far = 500;
-            sunLight.shadow.camera.left = -100;
-            sunLight.shadow.camera.right = 100;
-            sunLight.shadow.camera.top = 100;
-            sunLight.shadow.camera.bottom = -100;
-            scene.add(sunLight);
-            
-            // Point Lights (Gezegen aydınlatması)
-            const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
-            scene.add(pointLight);
-        }
-
-        // ========== GÜNEŞ SİSTEMİ OLUŞTURMA ==========
-        function createSolarSystem() {
-            textureManager.init(loadingManager);
-            
-            // Yıldızlar
-            solarSystemData.stars.forEach(starData => {
-                const star = createCelestialBody(starData);
-                solarObjects[starData.id] = star;
-                scene.add(star);
-            });
-            
-            // Gezegenler
-            solarSystemData.planets.forEach(planetData => {
-                const planet = createCelestialBody(planetData);
-                solarObjects[planetData.id] = planet;
-                scene.add(planet);
+                const isLiked = post.likes && post.likes[userId];
                 
-                // Uydular
-                if (planetData.moons) {
-                    planetData.moons.forEach(moonData => {
-                        const moon = createCelestialBody(moonData);
-                        planet.add(moon); // Uydu gezegene bağlı
-                        solarObjects[moonData.id] = moon;
+                const updateData = {};
+                if (isLiked) {
+                    // Unlike
+                    updateData[`likes.${userId}`] = arrayRemove(true); // Firestore'da delete field yerine arrayRemove (HACK: object field'ı silmek için delete kullanılamaz, ama arrayRemove ile field'ı array'e çevirip silebiliriz. En iyisi direkt updateDoc kullanmak)
+                    updateData['likeCount'] = (post.likeCount || 1) - 1;
+                    
+                    // Daha temiz çözüm:
+                    const newLikes = { ...post.likes };
+                    delete newLikes[userId];
+                    await updateDoc(postRef, {
+                        likes: newLikes,
+                        likeCount: (post.likeCount || 1) - 1
+                    });
+                } else {
+                    // Like
+                    await updateDoc(postRef, {
+                        [`likes.${userId}`]: true, // Add like
+                        likeCount: (post.likeCount || 0) + 1
                     });
                 }
-            });
-            
-            // Yörüngeler
-            createOrbits();
-        }
+            },
 
-        // ========== GÖKSEL CİSİM OLUŞTURMA ==========
-        function createCelestialBody(data) {
-            const geometry = new THREE.SphereGeometry(data.radius, 64, 64);
-            
-            let material;
-            if (data.texture) {
-                const texture = textureManager.load(data.texture);
-                material = new THREE.MeshPhongMaterial({
-                    map: texture,
-                    shininess: 10,
-                    specular: 0x333333
-                });
-            } else {
-                material = new THREE.MeshPhongMaterial({
-                    color: data.color,
-                    shininess: 30,
-                    specular: 0x222222
-                });
-            }
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            // Özellikleri sakla
-            mesh.userData = {
-                id: data.id,
-                name: data.name,
-                type: data.type,
-                radius: data.radius,
-                distance: data.distance,
-                rotationSpeed: data.rotationSpeed || 0,
-                orbitSpeed: data.orbitSpeed || 0,
-                temperature: data.temperature,
-                gravity: data.gravity,
-                description: data.description,
-                facts: data.facts || []
-            };
-            
-            // Pozisyon
-            if (data.distance) {
-                mesh.position.x = data.distance;
-            }
-            
-            return mesh;
-        }
-
-        // ========== YÖRÜNGELERİ OLUŞTURMA ==========
-        function createOrbits() {
-            solarSystemData.planets.forEach(planetData => {
-                const orbitGeometry = new THREE.RingGeometry(
-                    planetData.distance - 0.5,
-                    planetData.distance + 0.5,
-                    128
-                );
-                const orbitMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x1e40af,
-                    transparent: true,
-                    opacity: 0.1,
-                    side: THREE.DoubleSide
-                });
-                const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
-                orbit.rotation.x = Math.PI / 2;
-                scene.add(orbit);
-            });
-        }
-
-        // ========== ANİMASYON DÖNGÜSÜ ==========
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            // Gezegen animasyonları
-            Object.values(solarObjects).forEach(obj => {
-                const data = obj.userData;
+            openComments: (postId) => {
+                window.currentPostId = postId;
+                document.getElementById('comments-modal').style.display = 'flex';
+                document.getElementById('comments-list').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Yükleniyor...</div>';
                 
-                // Dönme
-                if (data.rotationSpeed) {
-                    obj.rotation.y += data.rotationSpeed * timeScale;
+                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+                const q = query(commentsRef, where('postId', '==', postId), orderBy('createdAt', 'asc'));
+                
+                window.unsubscribeComments = onSnapshot(q, (snap) => {
+                    const list = document.getElementById('comments-list');
+                    list.innerHTML = '';
+                    if (snap.empty) {
+                        list.innerHTML = '<div class="text-center text-gray-500 mt-4">İlk yorumu sen yap!</div>';
+                        return;
+                    }
+                    snap.forEach(doc => {
+                        const c = doc.data();
+                        const time = c.createdAt ? timeSince(new Date(c.createdAt.seconds * 1000)) : 'Şimdi';
+                        const el = document.createElement('div');
+                        el.className = 'flex gap-3 mb-4';
+                        el.innerHTML = `
+                             <img src="${c.userAvatar}" class="w-8 h-8 rounded-full bg-gray-200 object-cover">
+                             <div class="flex-1">
+                                <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none relative">
+                                    <div class="font-bold text-xs ${c.isAnonymous ? 'text-purple-500' : 'dark:text-white'}">${c.username}</div>
+                                    <div class="text-sm dark:text-gray-300">${c.text}</div>
+                                    <button onclick="window.app.reportContent('${doc.id}', 'comment')" class="absolute top-1 right-2 text-gray-400 hover:text-red-500"><i data-lucide="flag" class="w-3 h-3"></i></button>
+                                </div>
+                                <div class="text-[10px] text-gray-400 mt-1 pl-2">${time}</div>
+                             </div>
+                        `;
+                        list.appendChild(el);
+                    });
+                });
+            },
+            
+            closeComments: () => {
+                document.getElementById('comments-modal').style.display = 'none';
+                if(window.unsubscribeComments) window.unsubscribeComments();
+            },
+
+            sendComment: async () => {
+                const text = document.getElementById('comment-input').value;
+                if (!text) return;
+                
+                const isAnon = document.getElementById('comment-anon-check').checked;
+                
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'comments'), {
+                        postId: window.currentPostId,
+                        userId: userId,
+                        username: isAnon ? 'Gizli Üye' : window.app.currentUserData.username,
+                        userAvatar: isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : window.app.currentUserData.avatar,
+                        text: text,
+                        isAnonymous: isAnon,
+                        createdAt: serverTimestamp()
+                    });
+                    document.getElementById('comment-input').value = '';
+                } catch(e) {
+                    console.error("Yorum Gönderme Hatası:", e);
+                    window.showToast("Yorum gönderilemedi.");
+                }
+            },
+
+            // STORIES
+            viewStory: (storyItems) => {
+                if(!storyItems || storyItems.length === 0) return;
+                window.storyQueue = storyItems;
+                window.currentStoryIndex = 0;
+                
+                const modal = document.getElementById('story-viewer');
+                modal.style.display = 'flex';
+                // Reset progress bars
+                document.getElementById('story-progress-bars').innerHTML = storyItems.map(() => '<div class="story-viewer-progress"><div class="story-viewer-bar"></div></div>').join('');
+                window.app.playStory();
+            },
+
+            playStory: () => {
+                clearTimeout(window.storyTimeout);
+                if (window.currentStoryIndex >= window.storyQueue.length) {
+                    document.getElementById('story-viewer').style.display = 'none';
+                    return;
                 }
                 
-                // Yörünge (sadece gezegenler için)
-                if (data.orbitSpeed && data.distance) {
-                    obj.position.x = Math.cos(Date.now() * 0.001 * data.orbitSpeed * timeScale) * data.distance;
-                    obj.position.z = Math.sin(Date.now() * 0.001 * data.orbitSpeed * timeScale) * data.distance;
-                }
-            });
-            
-            // Kontroller güncelleme
-            if (controls) controls.update();
-            
-            // Render
-            renderer.render(scene, camera);
-        }
-
-        // ========== OLAY DİNLEYİCİLERİ ==========
-        function setupEventListeners() {
-            // Raycaster for object selection
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-            
-            function onMouseClick(event) {
-                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                const story = window.storyQueue[window.currentStoryIndex];
+                const content = document.getElementById('story-content');
+                const progressBar = document.getElementById('story-progress-bars').children[window.currentStoryIndex]?.querySelector('.story-viewer-bar');
                 
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(Object.values(solarObjects));
-                
-                if (intersects.length > 0) {
-                    const object = intersects[0].object;
-                    selectObject(object);
+                // Content
+                content.innerHTML = '';
+                if (story.type === 'video') {
+                    content.innerHTML = `<video id="story-video" src="${story.imageUrl}" autoplay class="w-full h-full object-cover"></video>`;
+                } else if (story.imageUrl) {
+                    content.innerHTML = `<img src="${story.imageUrl}" class="w-full h-full object-cover">`;
                 } else {
-                    closeInfo();
+                     content.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-xl">${story.caption}</div>`;
                 }
-            }
-            
-            // Zaman ölçeği kontrolü
-            document.getElementById('time-scale').addEventListener('input', (e) => {
-                timeScale = parseFloat(e.target.value);
-                document.getElementById('speed-display').textContent = `${timeScale.toFixed(1)}x`;
-            });
-            
-            // Pencere boyutu değişikliği
-            window.addEventListener('resize', onWindowResize);
-            
-            // Tıklama olayı
-            window.addEventListener('click', onMouseClick);
-        }
 
-        // ========== NESNE SEÇİMİ ==========
-        function selectObject(object) {
-            selectedObject = object;
-            const data = object.userData;
-            
-            // Panel bilgilerini güncelle
-            document.getElementById('object-name').textContent = data.name;
-            document.getElementById('object-type').textContent = data.type;
-            document.getElementById('stat-temp').textContent = data.temperature;
-            document.getElementById('stat-gravity').textContent = data.gravity;
-            
-            // İçerik oluştur
-            const content = document.getElementById('info-content');
-            content.innerHTML = `
-                <div class="space-y-4">
-                    <div>
-                        <h3 class="text-sky-400 font-bold text-sm uppercase orbitron tracking-wider mb-2">Açıklama</h3>
-                        <p class="text-gray-300 leading-relaxed">${data.description}</p>
-                    </div>
-                    
-                    <div>
-                        <h3 class="text-sky-400 font-bold text-sm uppercase orbitron tracking-wider mb-3">İlginç Gerçekler</h3>
-                        <ul class="space-y-2">
-                            ${data.facts.map(fact => `
-                                <li class="flex items-start gap-3">
-                                    <i class="fas fa-circle text-[6px] text-sky-400 mt-2 flex-shrink-0"></i>
-                                    <span class="text-gray-300 text-sm">${fact}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    
-                    <div class="glass p-4 rounded-xl">
-                        <h3 class="text-sky-400 font-bold text-sm uppercase orbitron tracking-wider mb-3">Teknik Özellikler</h3>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <span class="text-gray-400">Çap:</span>
-                                <span class="text-sky-300 ml-2">${(data.radius * 2).toFixed(1)} birim</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-400">Uzaklık:</span>
-                                <span class="text-sky-300 ml-2">${data.distance || 0} birim</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Panel aç
-            openInfo();
-            
-            // Kamerayı nesneye odakla
-            focusOnObject(object);
-        }
+                // Info
+                document.getElementById('story-user-img').src = story.userAvatar;
+                document.getElementById('story-username').innerText = story.username;
+                document.getElementById('story-time').innerText = story.createdAt ? timeSince(new Date(story.createdAt.seconds * 1000)) : 'Şimdi';
 
-        // ========== KAMERA ODAKLANMA ==========
-        function focusOnObject(object) {
-            const distance = object.userData.distance || 50;
-            const focusDistance = Math.max(object.userData.radius * 4, 15);
-            
-            controls.target.copy(object.position);
-            camera.position.set(
-                object.position.x + focusDistance,
-                object.position.y + focusDistance * 0.3,
-                object.position.z + focusDistance
-            );
-        }
 
-        // ========== PANEL KONTROLLERİ ==========
-        function openInfo() {
-            document.getElementById('info-panel').style.transform = 'translateX(0)';
-        }
+                // Progress Animation
+                if (progressBar) {
+                    // Diğer çubukları sıfırla
+                    Array.from(document.getElementById('story-progress-bars').children).forEach((bar, index) => {
+                        const barEl = bar.querySelector('.story-viewer-bar');
+                        if (index < window.currentStoryIndex) {
+                            barEl.style.width = '100%';
+                        } else {
+                             barEl.style.transition = 'none';
+                             barEl.style.width = '0%';
+                        }
+                    });
 
-        function closeInfo() {
-            document.getElementById('info-panel').style.transform = 'translateX(110%)';
-            selectedObject = null;
-            controls.target.set(0, 0, 0);
-        }
-
-        function resetCamera() {
-            camera.position.set(
-                config.camera.startPos.x,
-                config.camera.startPos.y,
-                config.camera.startPos.z
-            );
-            controls.target.set(0, 0, 0);
-            closeInfo();
-        }
-
-        // ========== MODAL KONTROLLERİ ==========
-        function openModal(type) {
-            const modal = document.getElementById('modal-overlay');
-            const container = document.getElementById('modal-container');
-            const title = document.getElementById('modal-title');
-            const body = document.getElementById('modal-body');
-            
-            // İçerik yükle
-            switch(type) {
-                case 'news':
-                    title.innerHTML = '<i class="fas fa-rss"></i> UZAY HABERLERİ';
-                    body.innerHTML = getNewsContent();
-                    break;
-                case 'gazette':
-                    title.innerHTML = '<i class="fas fa-book-open"></i> UZAY ANSİKLOPEDİSİ';
-                    body.innerHTML = getGazetteContent();
-                    break;
-                case 'about':
-                    title.innerHTML = '<i class="fas fa-info-circle"></i> HAKKINDA';
-                    body.innerHTML = getAboutContent();
-                    break;
-            }
-            
-            // Göster
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                container.style.opacity = '1';
-                container.style.transform = 'scale(1)';
-            }, 50);
-            
-            // Mobil menüyü kapat
-            toggleMobileMenu(false);
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('modal-overlay');
-            const container = document.getElementById('modal-container');
-            
-            container.style.opacity = '0';
-            container.style.transform = 'scale(0.95)';
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
-        }
-
-        // ========== MOBİL MENÜ ==========
-        function toggleMobileMenu(show) {
-            const menu = document.getElementById('mobile-menu');
-            if (show === undefined) {
-                menu.classList.toggle('hidden');
-            } else {
-                menu.classList.toggle('hidden', !show);
-            }
-        }
-
-        // ========== MODAL İÇERİKLERİ ==========
-        function getNewsContent() {
-            return `
-                <div class="space-y-6">
-                    <div class="news-card glass p-6 rounded-2xl transition-all">
-                        <div class="flex items-center gap-3 mb-3">
-                            <span class="badge px-3 py-1 rounded-full text-xs font-semibold orbitron">YENİ</span>
-                            <span class="text-gray-400 text-sm orbitron">15 ARA 2024</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-white mb-3 orbitron">James Webb Teleskobu Yeni Keşifler Yapıyor</h3>
-                        <p class="text-gray-300 mb-4">James Webb Uzay Teleskobu, ötegezegen atmosferlerinde yaşam izleri aramaya devam ediyor. Son veriler umut vadediyor.</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sky-400 text-sm orbitron">DEVAMINI OKU</span>
-                            <i class="fas fa-arrow-right text-sky-400"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="news-card glass p-6 rounded-2xl transition-all">
-                        <div class="flex items-center gap-3 mb-3">
-                            <span class="badge px-3 py-1 rounded-full text-xs font-semibold orbitron">GÜNCEL</span>
-                            <span class="text-gray-400 text-sm orbitron">10 ARA 2024</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-white mb-3 orbitron">Mars'ta Su Keşfi</h3>
-                        <p class="text-gray-300 mb-4">Perseverance rover'ı Mars'ın Jezero Krateri'nde eski bir nehir deltasında organik moleküller tespit etti.</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sky-400 text-sm orbitron">DEVAMINI OKU</span>
-                            <i class="fas fa-arrow-right text-sky-400"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="news-card glass p-6 rounded-2xl transition-all">
-                        <div class="flex items-center gap-3 mb-3">
-                            <span class="badge px-3 py-1 rounded-full text-xs font-semibold orbitron">GELECEK</span>
-                            <span class="text-gray-400 text-sm orbitron">05 ARA 2024</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-white mb-3 orbitron">Artemis Programı: Ay'a Dönüş</h3>
-                        <p class="text-gray-300 mb-4">NASA'nın Artemis programı kapsamında 2025'te Ay'a insanlı iniş planlanıyor. Mars'a giden yolda önemli bir adım.</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sky-400 text-sm orbitron">DEVAMINI OKU</span>
-                            <i class="fas fa-arrow-right text-sky-400"></i>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getGazetteContent() {
-            return `
-                <div class="space-y-6">
-                    <div class="grid md:grid-cols-2 gap-6">
-                        ${solarSystemData.planets.map(planet => `
-                            <div class="news-card glass p-6 rounded-2xl transition-all cursor-pointer" onclick="selectObject(solarObjects['${planet.id}']); closeModal();">
-                                <div class="flex items-center gap-4 mb-4">
-                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-globe-americas text-white"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-lg font-bold text-white orbitron">${planet.name}</h3>
-                                        <p class="text-gray-400 text-sm orbitron">${planet.type}</p>
-                                    </div>
-                                </div>
-                                <p class="text-gray-300 text-sm mb-4">${planet.description.substring(0, 100)}...</p>
-                                <div class="flex items-center justify-between text-sky-400">
-                                    <span class="text-sm orbitron">İNCELE</span>
-                                    <i class="fas fa-arrow-right"></i>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-xl font-bold text-white mb-4 orbitron">Güneş Sistemi İstatistikleri</h3>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="text-center">
-                                <div class="text-3xl font-bold neon-text orbitron">8</div>
-                                <div class="text-gray-400 text-sm orbitron">GEZEGEN</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-3xl font-bold neon-text orbitron">200+</div>
-                                <div class="text-gray-400 text-sm orbitron">UYDU</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-3xl font-bold neon-text orbitron">1</div>
-                                <div class="text-gray-400 text-sm orbitron">YILDIZ</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-3xl font-bold neon-text orbitron">4.6B</div>
-                                <div class="text-gray-400 text-sm orbitron">YAŞ (yıl)</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getAboutContent() {
-            return `
-                <div class="space-y-6">
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-xl font-bold text-white mb-4 orbitron">Muzcuk.Systeam v3.0</h3>
-                        <p class="text-gray-300 mb-4">
-                            Bu interaktif 3D Güneş Sistemi simülasyonu, modern web teknolojileri kullanılarak geliştirilmiştir. 
-                            Gerçek zamanlı render, fiziksel doğru yörüngeler ve detaylı gezegen bilgileri sunar.
-                        </p>
-                        <div class="grid md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <h4 class="text-sky-400 font-bold mb-2 orbitron">Teknolojiler</h4>
-                                <ul class="text-gray-300 space-y-1 text-sm">
-                                    <li><i class="fas fa-cube text-sky-400 mr-2"></i>Three.js - 3D Render</li>
-                                    <li><i class="fas fa-palette text-sky-400 mr-2"></i>Tailwind CSS - Styling</li>
-                                    <li><i class="fas fa-code text-sky-400 mr-2"></i>Vanilla JavaScript</li>
-                                    <li><i class="fas fa-mobile-alt text-sky-400 mr-2"></i>Responsive Design</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 class="text-sky-400 font-bold mb-2 orbitron">Özellikler</h4>
-                                <ul class="text-gray-300 space-y-1 text-sm">
-                                    <li><i class="fas fa-search text-sky-400 mr-2"></i>Interaktif Keşif</li>
-                                    <li><i class="fas fa-info-circle text-sky-400 mr-2"></i>Detaylı Bilgiler</li>
-                                    <li><i class="fas fa-sliders-h text-sky-400 mr-2"></i>Zaman Kontrolü</li>
-                                    <li><i class="fas fa-satellite text-sky-400 mr-2"></i>Gerçek Yörüngeler</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-xl font-bold text-white mb-4 orbitron">Geliştirici</h3>
-                        <div class="flex items-center gap-4">
-                            <div class="w-16 h-16 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center">
-                                <i class="fas fa-rocket text-white text-2xl"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-lg font-bold text-white">Muzcuk.Systeam</h4>
-                                <p class="text-gray-400">Uzay Meraklısı & Geliştirici</p>
-                                <div class="flex gap-3 mt-2">
-                                    <a href="#" class="text-sky-400 hover:text-white transition-colors">
-                                        <i class="fab fa-github"></i>
-                                    </a>
-                                    <a href="#" class="text-sky-400 hover:text-white transition-colors">
-                                        <i class="fab fa-twitter"></i>
-                                    </a>
-                                    <a href="#" class="text-sky-400 hover:text-white transition-colors">
-                                        <i class="fab fa-linkedin"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // ========== YARDIMCI FONKSİYONLAR ==========
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // ========== UYGULAMA BAŞLATMA ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            initLoadingManager();
-            textureManager.init(loadingManager);
-            
-            // Yükleme simülasyonu
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 10;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
+                    // Aktif çubuğu canlandır
+                    setTimeout(() => {
+                        progressBar.style.transition = 'width 5s linear'; // 5 seconds per story
+                        progressBar.style.width = '100%';
+                    }, 50);
                 }
-                document.getElementById('loading-bar').style.width = `${progress}%`;
-                document.getElementById('loading-text').textContent = `Evren yükleniyor... ${Math.round(progress)}%`;
-            }, 200);
-        });
 
-        // Global fonksiyonlar
-        window.selectObject = selectObject;
-        window.closeInfo = closeInfo;
-        window.resetCamera = resetCamera;
-        window.openModal = openModal;
-        window.closeModal = closeModal;
-        window.toggleMobileMenu = toggleMobileMenu;
+
+                window.storyTimeout = setTimeout(() => {
+                    window.currentStoryIndex++;
+                    window.app.playStory();
+                }, 5000); 
+            },
+
+            closeStory: () => {
+                clearTimeout(window.storyTimeout);
+                document.getElementById('story-viewer').style.display = 'none';
+            },
+
+            // CHAT / MESSAGING
+            openChat: (chatId, chatName) => {
+                window.app.activeChatId = chatId;
+                document.getElementById('chat-name').innerText = chatName;
+                document.getElementById('chat-messages').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Mesajlar yükleniyor...</div>';
+                window.app.switchTab('messages-view');
+                document.getElementById('chat-list-view').style.display = 'none';
+                document.getElementById('chat-detail-view').style.display = 'flex';
+                
+                const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+                const q = query(messagesRef, where('chatId', '==', chatId), orderBy('createdAt', 'asc'), limit(100));
+                
+                window.unsubscribeMessages = onSnapshot(q, (snap) => {
+                    window.app.activeChatMessages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    window.app.renderChatMessages();
+                    
+                    // Mark as read (Simple implementation - update last read time)
+                    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', chatId), {
+                        [`readBy.${userId}`]: serverTimestamp()
+                    });
+                });
+            },
+
+            closeChat: () => {
+                document.getElementById('chat-list-view').style.display = 'block';
+                document.getElementById('chat-detail-view').style.display = 'none';
+                window.app.activeChatId = null;
+                if(window.unsubscribeMessages) window.unsubscribeMessages();
+                window.app.renderChatList();
+            },
+
+            sendMessage: async () => {
+                const input = document.getElementById('chat-input');
+                const text = input.value.trim();
+                const isAnon = document.getElementById('chat-anon-check').checked;
+
+                if (!text || !window.app.activeChatId) return;
+                
+                // Content Moderation (Simple client-side filter)
+                if (text.toLowerCase().includes('spam') || text.toLowerCase().includes('uygunsuz')) {
+                    window.showToast("Uygunsuz içerik filtresine takıldı. Mesajınız gönderilmedi.");
+                    input.value = '';
+                    return;
+                }
+
+                try {
+                    const messageData = {
+                        chatId: window.app.activeChatId,
+                        senderId: userId,
+                        senderName: window.app.currentUserData.username,
+                        content: text,
+                        type: 'text',
+                        isAnonymous: isAnon,
+                        isEncrypted: true, // Şifreli kaydedildi (Placeholder for real encryption)
+                        createdAt: serverTimestamp()
+                    };
+
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), messageData);
+                    
+                    // Update chat metadata
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', window.app.activeChatId), {
+                        lastMessage: text,
+                        lastMessageTime: serverTimestamp()
+                    });
+                    
+                    input.value = '';
+                    if(isAnon) {
+                         // Anonim mesaj sayısını artır
+                         const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                         await updateDoc(profileRef, { anonMessagesCount: arrayUnion(true) }); // HACK: field'ı array yapıp length ile saymak
+                    }
+
+                } catch(e) {
+                    console.error("Mesaj Gönderme Hatası:", e);
+                    window.showToast("Mesaj gönderilemedi.");
+                }
+            },
+            
+            // PROFILE EDIT & SETTINGS
+            openEditProfile: () => {
+                const u = window.app.currentUserData;
+                document.getElementById('edit-profile-modal').style.display = 'flex';
+                document.getElementById('edit-username').value = u.username;
+                document.getElementById('edit-bio').value = u.bio;
+                document.getElementById('edit-privacy').checked = u.isPrivate;
+            },
+            
+            saveProfile: async () => {
+                const newUsername = document.getElementById('edit-username').value;
+                const newBio = document.getElementById('edit-bio').value;
+                const isPrivate = document.getElementById('edit-privacy').checked;
+                
+                if (newUsername.length < 3) {
+                    window.showToast("Takma ad en az 3 karakter olmalı.");
+                    return;
+                }
+
+                const userRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                await updateDoc(userRef, {
+                    username: newUsername,
+                    bio: newBio,
+                    isPrivate: isPrivate
+                });
+                window.showToast("Profil güncellendi.");
+                document.getElementById('edit-profile-modal').style.display = 'none';
+            },
+
+            deleteAccount: async () => {
+                document.getElementById('confirm-modal-text').innerText = "Hesabını kalıcı olarak silmek istediğine emin misin? Bu işlem geri alınamaz.";
+                document.getElementById('confirm-modal-action').onclick = async () => {
+                    document.getElementById('confirm-modal').style.display = 'none';
+                    try {
+                        await deleteUser(auth.currentUser);
+                        window.app.resetState();
+                        window.showToast("Hesabınız silindi.");
+                    } catch(e) {
+                        console.error("Hesap Silme Hatası:", e);
+                        window.showToast("Hesap silinirken bir hata oluştu.");
+                    }
+                };
+                document.getElementById('confirm-modal').style.display = 'flex';
+            },
+            
+            reportContent: (id, type) => {
+                 document.getElementById('confirm-modal-text').innerText = `${type} içeriği (${id}) şikayet etmek istediğine emin misin? Moderasyon inceleyecektir.`;
+                 document.getElementById('confirm-modal-action').onclick = async () => {
+                    document.getElementById('confirm-modal').style.display = 'none';
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), {
+                            reporterId: userId,
+                            reportedContentId: id,
+                            contentType: type,
+                            timestamp: serverTimestamp()
+                        });
+                        window.showToast("İçerik şikayet edildi. Teşekkürler.");
+                    } catch(e) {
+                        window.showToast("Şikayet gönderilemedi.");
+                    }
+                 };
+                 document.getElementById('confirm-modal').style.display = 'flex';
+            },
+
+            // NAVIGATION
+            switchTab: (viewId) => {
+                document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+                document.getElementById(viewId).classList.add('active');
+                
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-purple-500'));
+                const activeBtn = document.querySelector(`.nav-btn[onclick="window.app.switchTab('${viewId}')"]`);
+                if(activeBtn) activeBtn.classList.add('text-purple-500');
+
+                // Update Header Title based on view
+                const headerTitle = document.getElementById('header-title');
+                if (viewId === 'feed-view') headerTitle.innerText = 'Gramano';
+                if (viewId === 'explore-view') headerTitle.innerText = 'Keşfet';
+                if (viewId === 'messages-view') headerTitle.innerText = 'Mesajlar';
+                if (viewId === 'profile-view') headerTitle.innerText = 'Profil';
+
+                if (viewId === 'messages-view' && window.unsubscribeMessages) {
+                    window.app.closeChat(); // Mesaj listesine dönüldüğünde detay ekranını kapat
+                }
+            },
+
+            toggleTheme: () => {
+                const body = document.body;
+                const current = body.getAttribute('data-theme');
+                body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            },
+
+            logout: async () => {
+                await signOut(auth);
+            }
+        };
+
+        initFirebase();
+        document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
     </script>
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-view" class="full-screen-overlay justify-center items-center p-6 bg-gradient-to-br from-purple-900 to-black text-white">
+        <div class="w-full max-w-sm text-center">
+            <div class="mb-8">
+                <i data-lucide="ghost" class="w-16 h-16 mx-auto mb-2 text-purple-400"></i>
+                <h1 class="text-4xl font-logo tracking-tighter">Gramano</h1>
+                <p class="text-purple-200 mt-2 text-sm">Anonim ol. Özgür ol.</p>
+            </div>
+            
+            <div class="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
+                <input type="email" id="auth-email" placeholder="E-posta" class="w-full p-3 rounded-lg bg-black/40 border border-purple-500/30 text-white mb-3 focus:outline-none focus:border-purple-500">
+                <input type="password" id="auth-password" placeholder="Şifre (min 6 hane)" class="w-full p-3 rounded-lg bg-black/40 border border-purple-500/30 text-white mb-4 focus:outline-none focus:border-purple-500">
+                
+                <button onclick="window.handleAuth(false)" class="w-full p-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold mb-2 transition-colors shadow-lg shadow-purple-900/50">Giriş Yap</button>
+                <button onclick="window.handleAuth(true)" class="w-full p-3 bg-transparent border border-purple-400/50 hover:bg-white/5 rounded-lg font-semibold text-purple-200 transition-colors">Hesap Oluştur</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app" class="flex-col h-full bg-white dark:bg-black" style="display:none;">
+        
+        <!-- HEADER -->
+        <header id="main-header" class="h-[60px] border-b border-gray-100 dark:border-gray-800 flex justify-between items-center px-4 sticky top-0 bg-white/90 dark:bg-black/90 backdrop-blur z-20">
+            <div class="text-2xl font-logo font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600" id="header-title">Gramano</div>
+            <div class="flex gap-4">
+                <button onclick="window.app.toggleTheme()"><i data-lucide="moon" class="w-6 h-6 dark:text-white"></i></button>
+                <button class="relative" onclick="window.showToast('Bildirimler sekmesi simülasyonu')">
+                    <i data-lucide="bell" class="w-6 h-6 dark:text-white"></i>
+                    <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-black"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- VIEWS -->
+        <div class="app-container">
+            
+            <!-- FEED -->
+            <div id="feed-view" class="view active">
+                <div id="stories-container" class="flex gap-4 p-4 overflow-x-auto border-b border-gray-100 dark:border-gray-800 scrollbar-hide"></div>
+                <div id="feed-container" class="pb-20"></div>
+            </div>
+
+            <!-- EXPLORE -->
+            <div id="explore-view" class="view">
+                <div class="p-3 sticky top-0 bg-white dark:bg-black z-10">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                        <input type="text" placeholder="Kullanıcı, #Etiket veya Konum Ara..." class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm focus:outline-none dark:text-white">
+                    </div>
+                    <div class="flex gap-2 mt-3 overflow-x-auto pb-1">
+                        <span class="px-4 py-1.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold whitespace-nowrap">#Trend</span>
+                        <span class="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs whitespace-nowrap dark:text-gray-300">#Mizah</span>
+                        <span class="px-4 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs whitespace-nowrap dark:text-gray-300">#Video</span>
+                    </div>
+                </div>
+                <div id="explore-grid" class="grid grid-cols-3 gap-0.5"></div>
+            </div>
+            
+            <!-- MESSAGES -->
+            <div id="messages-view" class="view flex flex-col">
+                <div id="chat-list-view" class="flex-1 overflow-y-auto">
+                    <div id="chat-list" class="pt-2"></div>
+                </div>
+
+                <!-- CHAT DETAIL -->
+                <div id="chat-detail-view" class="full-screen-overlay flex-col z-40" style="display:none; position:relative; background:var(--bg);">
+                    <div class="h-[60px] border-b border-gray-100 dark:border-gray-800 flex items-center px-4">
+                        <button onclick="window.app.closeChat()" class="p-2"><i data-lucide="chevron-left" class="w-6 h-6 dark:text-white"></i></button>
+                        <h2 id="chat-name" class="font-bold flex-1 ml-2 dark:text-white">Sohbet Adı</h2>
+                        <button onclick="window.showToast('Grup/Kullanıcı Detayları')"><i data-lucide="more-vertical" class="w-6 h-6 dark:text-white"></i></button>
+                    </div>
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                        <!-- Messages render here -->
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="p-3 border-t border-gray-100 dark:border-gray-800 flex gap-2 items-center bg-white dark:bg-black">
+                        <label class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 cursor-pointer">
+                            <input type="checkbox" id="chat-anon-check" class="hidden">
+                            <i data-lucide="mask" class="w-4 h-4 text-purple-600 dark:text-purple-300"></i>
+                        </label>
+                        <input type="text" id="chat-input" placeholder="Mesaj gönder..." class="flex-1 p-2 bg-gray-100 dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white">
+                        <button onclick="window.app.sendMessage()" class="text-purple-600 font-bold text-sm px-2">Gönder</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROFILE -->
+            <div id="profile-view" class="view">
+                <div class="p-5">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="relative">
+                            <img id="p-avatar" src="" class="w-20 h-20 rounded-full border-2 border-purple-500 object-cover p-1">
+                        </div>
+                        <div class="flex-1 flex justify-around text-center ml-4">
+                            <div>
+                                <div id="stat-posts" class="font-bold text-lg dark:text-white">0</div>
+                                <div class="text-xs text-gray-500">Gönderi</div>
+                            </div>
+                            <div>
+                                <div id="stat-followers" class="font-bold text-lg dark:text-white">0</div>
+                                <div class="text-xs text-gray-500">Takipçi</div>
+                            </div>
+                            <div>
+                                <div id="stat-following" class="font-bold text-lg dark:text-white">0</div>
+                                <div class="text-xs text-gray-500">Takip Edilen</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 id="p-fullname" class="font-bold text-lg dark:text-white flex items-center gap-2"></h2>
+                        <div id="p-username" class="text-purple-600 text-sm font-medium"></div>
+                        <p id="p-bio" class="text-sm text-gray-600 dark:text-gray-300 mt-2"></p>
+                        <p id="p-uid-info" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+
+                    <div class="flex gap-2 mb-6">
+                        <button onclick="window.app.openEditProfile()" class="flex-1 bg-gray-100 dark:bg-gray-800 py-2 rounded-lg text-sm font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Profili Düzenle</button>
+                        <button onclick="window.app.logout()" class="w-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                    </div>
+                    
+                    <div class="flex border-b border-gray-200 dark:border-gray-800 mb-1">
+                        <button class="flex-1 pb-3 border-b-2 border-purple-500 text-purple-500"><i data-lucide="grid-3x3" class="w-5 h-5 mx-auto"></i></button>
+                    </div>
+                    <div id="profile-grid" class="grid grid-cols-3 gap-0.5"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM NAV -->
+        <nav id="bottom-nav" class="h-[60px] border-t border-gray-100 dark:border-gray-800 flex justify-around items-center bg-white dark:bg-black fixed bottom-0 w-full z-30 pb-safe">
+            <button class="nav-btn text-purple-500" onclick="window.app.switchTab('feed-view')"><i data-lucide="home" class="w-7 h-7"></i></button>
+            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="window.app.switchTab('explore-view')"><i data-lucide="compass" class="w-7 h-7"></i></button>
+            <button class="nav-btn bg-purple-600 text-white rounded-xl p-2 -mt-6 shadow-lg shadow-purple-500/30" onclick="window.app.openUpload()"><i data-lucide="plus" class="w-7 h-7"></i></button>
+            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="window.app.switchTab('messages-view')"><i data-lucide="message-square" class="w-7 h-7"></i></button>
+            <button class="nav-btn" onclick="window.app.switchTab('profile-view')">
+                <img id="nav-profile-img" src="" class="w-7 h-7 rounded-full border border-gray-300 object-cover">
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- UPLOAD MODAL -->
+    <div id="upload-modal" class="full-screen-overlay justify-end bg-black/60 z-50 backdrop-blur-sm" style="display:none;">
+        <div class="bg-white dark:bg-gray-900 w-full rounded-t-3xl overflow-hidden shadow-2xl h-[90vh] flex flex-col animate-slide-up">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <button onclick="window.app.closeUpload()" class="text-red-500 font-medium">İptal</button>
+                <span id="upload-type-title" class="font-bold dark:text-white">Yeni Gönderi</span>
+                <button onclick="window.app.sharePost()" class="text-purple-600 font-bold">Paylaş</button>
+            </div>
+            
+            <div class="p-5 flex-1 overflow-y-auto">
+                <!-- Anon Switch -->
+                <div class="flex items-center gap-3 mb-6 bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl border border-purple-100 dark:border-purple-900/50">
+                    <div class="flex-1">
+                        <div class="font-bold text-sm text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                            <i data-lucide="mask" class="w-4 h-4"></i> Anonim Paylaşım
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">Bu gönderi/hikayede profilin gizlenir.</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="anon-check" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+
+                <!-- Media Input -->
+                <div class="mb-4">
+                    <label class="block w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors relative overflow-hidden group">
+                        <div class="text-center text-gray-400 group-hover:text-purple-500 transition-colors">
+                            <i data-lucide="image-plus" class="w-10 h-10 mx-auto mb-2"></i>
+                            <span class="text-sm">Medya Seç (Foto/Video)</span>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="window.app.previewFile(this)">
+                        <div id="preview-container" class="absolute inset-0 w-full h-full bg-black flex items-center justify-center pointer-events-none"></div>
+                    </label>
+                </div>
+
+                <!-- Details -->
+                <textarea id="post-caption" rows="3" placeholder="Açıklama veya sadece metin gönderisi yaz..." class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border-none resize-none dark:text-white mb-3"></textarea>
+                <div class="grid grid-cols-2 gap-3">
+                    <input id="location-input" type="text" placeholder="Konum" class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm dark:text-white">
+                    <input id="hashtag-input" type="text" placeholder="#Etiket, #Sosyal, #..." class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm dark:text-white">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMMENTS MODAL -->
+    <div id="comments-modal" class="full-screen-overlay justify-end bg-black/60 z-50 backdrop-blur-sm" style="display:none;">
+        <div class="bg-white dark:bg-gray-900 w-full h-[75vh] rounded-t-3xl shadow-2xl flex flex-col animate-slide-up">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <span class="font-bold dark:text-white">Yorumlar</span>
+                <button onclick="window.app.closeComments()" class="p-1"><i data-lucide="x" class="dark:text-white"></i></button>
+            </div>
+            <div id="comments-list" class="flex-1 overflow-y-auto p-4"></div>
+            <div class="p-3 border-t border-gray-100 dark:border-gray-800 flex gap-2 items-center bg-gray-50 dark:bg-black">
+                <label class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 cursor-pointer">
+                    <input type="checkbox" id="comment-anon-check" class="hidden">
+                    <i data-lucide="mask" class="w-4 h-4 text-purple-600 dark:text-purple-300"></i>
+                </label>
+                <input type="text" id="comment-input" placeholder="Yorum yap..." class="flex-1 p-2 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white">
+                <button onclick="window.app.sendComment()" class="text-purple-600 font-bold text-sm px-2">Paylaş</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STORY VIEWER -->
+    <div id="story-viewer" class="full-screen-overlay bg-black z-[2000] flex-col" style="display:none;">
+        <div class="relative w-full h-full flex items-center justify-center">
+            <!-- Progress -->
+            <div id="story-progress-bars" class="absolute top-2 left-0 w-full px-2 flex gap-1 z-20">
+                <!-- Progress bars will be rendered here -->
+            </div>
+            <!-- User Info & Close -->
+            <div class="absolute top-6 left-4 right-4 flex items-center justify-between z-20">
+                <div class="flex items-center gap-2">
+                    <img id="story-user-img" src="" class="w-8 h-8 rounded-full border border-white">
+                    <span id="story-username" class="text-white font-bold text-sm shadow-black drop-shadow-md"></span>
+                    <span id="story-time" class="text-gray-300 text-xs shadow-black drop-shadow-md"></span>
+                </div>
+                <button onclick="window.app.closeStory()" class="z-30 text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            
+            <!-- Content -->
+            <div id="story-content" class="w-full h-full"></div>
+
+            <!-- Navigation Controls (Placeholder for swipe, using buttons for demo) -->
+            <button onclick="window.currentStoryIndex--; window.app.playStory()" class="absolute left-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-start opacity-0 hover:opacity-100 transition-opacity p-2">
+                 <i data-lucide="chevron-left" class="w-8 h-8 bg-black/30 rounded-full p-1"></i>
+            </button>
+            <button onclick="window.currentStoryIndex++; window.app.playStory()" class="absolute right-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-end opacity-0 hover:opacity-100 transition-opacity p-2">
+                <i data-lucide="chevron-right" class="w-8 h-8 bg-black/30 rounded-full p-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="edit-profile-modal" class="full-screen-overlay justify-center items-center bg-black/80 z-[1200]" style="display:none;">
+        <div class="bg-white dark:bg-gray-900 w-11/12 max-w-sm rounded-2xl p-6">
+            <h3 class="font-bold text-lg mb-4 dark:text-white">Profili Düzenle</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1">Takma Ad</label>
+                    <input id="edit-username" type="text" class="w-full p-2 bg-gray-100 dark:bg-gray-800 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1">Biyografi</label>
+                    <textarea id="edit-bio" rows="2" class="w-full p-2 bg-gray-100 dark:bg-gray-800 rounded text-sm dark:text-white"></textarea>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm dark:text-white">Gizli Hesap</span>
+                    <input type="checkbox" id="edit-privacy" class="w-4 h-4 text-purple-600">
+                </div>
+                <div class="pt-2 flex gap-3">
+                    <button onclick="document.getElementById('edit-profile-modal').style.display='none'" class="flex-1 py-2 text-gray-500">İptal</button>
+                    <button onclick="window.app.saveProfile()" class="flex-1 py-2 bg-purple-600 text-white rounded font-bold">Kaydet</button>
+                </div>
+                <button onclick="window.app.deleteAccount()" class="w-full py-2 text-red-500 text-xs mt-2 hover:bg-red-50 dark:hover:bg-red-900/10 rounded">Hesabı Sil</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="full-screen-overlay justify-center items-center bg-black/80 z-[2500]" style="display:none;">
+        <div class="bg-white dark:bg-gray-900 w-11/12 max-w-xs rounded-xl p-6 text-center shadow-2xl">
+            <h3 class="font-bold text-lg mb-4 dark:text-white">Onayla</h3>
+            <p id="confirm-modal-text" class="text-sm text-gray-600 dark:text-gray-300 mb-6"></p>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('confirm-modal').style.display='none'" class="flex-1 py-2 text-gray-500 border border-gray-300 dark:border-gray-700 rounded-lg">İptal</button>
+                <button id="confirm-modal-action" class="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold">Onayla</button>
+            </div>
+        </div>
+    </div>
+
+
 </body>
 </html>
