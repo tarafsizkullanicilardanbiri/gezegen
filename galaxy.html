@@ -27,11 +27,9 @@
         /* ==================== TEMEL AYARLAR ==================== */
         :root {
             --nav-height: 60px;
+            --bg: inherit;
         }
 
-        /* Temel Stiller */
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             transition: background-color 0.3s, color 0.3s;
@@ -41,29 +39,34 @@
             overflow: hidden;
         }
         
-        /* Scrollbar Gizleme */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
-
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 3px; }
+        
         /* Full Screen Overlay */
         .full-screen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 100; 
-            display: none; /* Varsayılan gizli */
+            display: none;
             flex-direction: column;
         }
 
-        /* Auth View Özel */
-        #auth-view { display: flex; }
-
-        /* Ana içerik scroll alanı */
+        /* Ana içerik */
         .app-container {
-            flex: 1; overflow-y: auto; padding-bottom: var(--nav-height);
-            transition: transform 0.3s;
+            flex: 1; 
+            overflow-y: auto; 
+            padding-bottom: var(--nav-height);
         }
 
         /* Animasyonlar */
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { 
+            from { transform: translateY(100%); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+        .animate-slide-up { 
+            animation: slideUp 0.3s ease-out forwards; 
+        }
         
         /* Toast Notification */
         #toast-container {
@@ -88,8 +91,15 @@
         }
         
         /* Views */
-        .view { display: none; width: 100%; height: 100%; overflow-y: auto; padding-bottom: var(--nav-height); }
-        .view.active { display: block; }
+        .view { 
+            display: none; 
+            width: 100%; 
+            height: 100%; 
+            overflow-y: auto; 
+        }
+        .view.active { 
+            display: block; 
+        }
         
         /* Message Bubbles */
         .message-bubble {
@@ -103,15 +113,16 @@
         /* Logo Font */
         .font-logo { font-family: 'Courier New', Courier, monospace; letter-spacing: -1px; font-weight: 800; }
 
-        /* Hikaye İlerleme Çubuğu */
+        /* Story Progress */
         .story-viewer-progress {
             height: 2px; background: rgba(255,255,255,0.3); flex: 1; margin: 0 2px; border-radius: 2px; overflow: hidden;
         }
         .story-viewer-bar {
             height: 100%; background: white; width: 0%;
+            transition: width 5s linear;
         }
         
-        /* Güvenli Alan (Mobile) */
+        /* Güvenli Alan */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
@@ -120,1042 +131,8 @@
     <!-- TOAST CONTAINER -->
     <div id="toast-container"></div>
 
-    <!-- FIREBASE INIT & CORE LOGIC -->
-    <script type="module">
-        // ========== FIREBASE KONFİGÜRASYONU ==========
-        const firebaseConfig = {
-            apiKey: "AIzaSyBf95NYXP8HgIOQPJo9B5zTHXrqhgol-1c",
-            authDomain: "insta-17210.firebaseapp.com",
-            projectId: "insta-17210",
-            storageBucket: "insta-17210.firebasestorage.app",
-            messagingSenderId: "287281107154",
-            appId: "1:287281107154:web:db4100f2d055b96d1d5d0b",
-            measurementId: "G-VV5DQKPC5L"
-        };
-
-        // Global değişkenlere atayın
-        window.__firebase_config = JSON.stringify(firebaseConfig);
-        // ========== FIREBASE KONFİGÜRASYONU SONU ==========
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
-            signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut, updateProfile, deleteUser
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, getDocs,
-            collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, limit, arrayUnion, arrayRemove
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // --- GÜVENLİK FONKSİYONLARI (XSS Koruması) ---
-        const escapeHtml = (unsafe) => {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
-        };
-
-        // Global Değişkenler
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        let firebaseConfig = {};
-        try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-            }
-        } catch (e) { console.error("Config parse hatası", e); }
-
-        let app, auth, db;
-        let userId = null;
-        let unsubscribeListeners = [];
-
-        // UI Yardımcıları
-        window.showToast = (msg) => {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerText = msg;
-            container.appendChild(toast);
-            requestAnimationFrame(() => toast.classList.add('show'));
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        };
-        
-        const timeSince = (date) => {
-            if(!date) return '';
-            const seconds = Math.floor((new Date() - date) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + "y";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + "ay";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + "g";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + "s";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + "dk";
-            return "Şimdi";
-        };
-
-        // FIREBASE BAŞLATMA
-        const initFirebase = async () => {
-            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-                console.error("Firebase config bulunamadı.");
-                document.getElementById('auth-error-msg').style.display = 'block';
-                return;
-            }
-
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        await ensureUserProfile(user);
-                        if (window.app && window.app.loadApp) {
-                            window.app.loadApp(userId);
-                        }
-                    } else {
-                        userId = null;
-                        if (window.app && window.app.resetState) {
-                            window.app.resetState();
-                        }
-                    }
-                });
-
-                const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
-                if (authToken) {
-                    await signInWithCustomToken(auth, authToken);
-                }
-
-            } catch (error) {
-                console.error("Firebase Başlatma Hatası:", error);
-                window.showToast("Bağlantı hatası: " + error.message);
-            }
-        };
-
-        const ensureUserProfile = async (user) => {
-            try {
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                const snap = await getDoc(userRef);
-                
-                if (!snap.exists()) {
-                    const isAnon = user.isAnonymous;
-                    const baseName = isAnon ? 'User' : (user.email ? user.email.split('@')[0] : 'User');
-                    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-                    
-                    await setDoc(userRef, {
-                        username: `${baseName}_${randomSuffix}`.toLowerCase(),
-                        username_search: `${baseName}_${randomSuffix}`.toLowerCase(), // Arama için
-                        email: user.email || null,
-                        avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
-                        fullname: isAnon ? 'Anonim Gezgin' : baseName,
-                        bio: 'Gramano dünyasında bir gezgin.',
-                        isPrivate: false,
-                        followersCount: 0,
-                        followingCount: 0,
-                        createdAt: serverTimestamp()
-                    });
-                }
-            } catch (e) {
-                console.error("Profil oluşturma hatası:", e);
-            }
-        };
-
-        window.handleAuth = async (isRegister) => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            
-            if (!email || !password || password.length < 6) {
-                window.showToast("E-posta ve min 6 hane şifre gerekli.");
-                return;
-            }
-
-            try {
-                if (isRegister) {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
-            } catch (error) {
-                let msg = "İşlem başarısız.";
-                if (error.code === 'auth/email-already-in-use') msg = "Bu e-posta zaten kayıtlı.";
-                if (error.code === 'auth/invalid-credential') msg = "Bilgiler hatalı.";
-                window.showToast(msg);
-            }
-        };
-
-        window.handleAnonAuth = async () => {
-            try {
-                await signInAnonymously(auth);
-            } catch (e) {
-                window.showToast("Giriş başarısız: " + e.message);
-            }
-        };
-        
-        // --- APP STATE & LISTENERS ---
-        window.app = {
-            currentUserData: null,
-            posts: [],
-            stories: [],
-            chats: [],
-            notifications: [],
-            activeChatMessages: [],
-            activeChatId: null,
-            
-            resetState: () => {
-                unsubscribeListeners.forEach(u => u());
-                unsubscribeListeners = [];
-                document.getElementById('main-app').style.display = 'none';
-                document.getElementById('auth-view').style.display = 'flex';
-            },
-
-            loadApp: (uid) => {
-                document.getElementById('auth-view').style.display = 'none';
-                document.getElementById('main-app').style.display = 'flex';
-                window.app.startListeners();
-                window.app.switchTab('feed-view');
-            },
-
-            startListeners: () => {
-                unsubscribeListeners.forEach(u => u());
-                unsubscribeListeners = [];
-
-                // 1. Profil Dinleyicisi
-                const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
-                unsubscribeListeners.push(onSnapshot(profileRef, (snap) => {
-                    if (snap.exists()) {
-                        window.app.currentUserData = { id: userId, ...snap.data() };
-                        window.app.updateProfileUI();
-                    }
-                }));
-
-                // 2. Gönderiler (Posts)
-                const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
-                const qPosts = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
-                
-                unsubscribeListeners.push(onSnapshot(qPosts, (snap) => {
-                    window.app.posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    window.app.renderFeed();
-                    window.app.renderExplore();
-                    window.app.updateProfileUI(); // Post sayısı değişince güncelle
-                }));
-
-                // 3. Hikayeler
-                const storiesRef = collection(db, 'artifacts', appId, 'public', 'data', 'stories');
-                const qStories = query(storiesRef, orderBy('createdAt', 'desc'), limit(50));
-                
-                unsubscribeListeners.push(onSnapshot(qStories, (snap) => {
-                    const now = Date.now();
-                    const oneDay = 24 * 60 * 60 * 1000;
-                    window.app.stories = snap.docs
-                        .map(d => ({ id: d.id, ...d.data() }))
-                        .filter(s => s.createdAt && (now - s.createdAt.toMillis()) < oneDay);
-                    window.app.renderStories();
-                }));
-
-                // 4. Sohbetler
-                const chatsRef = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
-                unsubscribeListeners.push(onSnapshot(chatsRef, (snap) => {
-                    window.app.chats = snap.docs.map(d => ({id: d.id, ...d.data()}))
-                        .filter(c => c.participants && c.participants.includes(userId))
-                        .sort((a, b) => (b.lastMessageTime?.seconds || 0) - (a.lastMessageTime?.seconds || 0));
-                    window.app.renderChatList();
-                }));
-
-                // 5. Bildirimler (YENİ) - Private collection
-                const notifRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
-                const qNotif = query(notifRef, orderBy('createdAt', 'desc'), limit(20));
-                
-                unsubscribeListeners.push(onSnapshot(qNotif, (snap) => {
-                    window.app.notifications = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                    window.app.renderNotifications();
-                    // Yeni bildirim varsa badge güncelle
-                    const hasUnread = window.app.notifications.some(n => !n.isRead);
-                    document.getElementById('notif-badge').style.display = hasUnread ? 'block' : 'none';
-                }));
-            },
-
-            updateProfileUI: () => {
-                const u = window.app.currentUserData;
-                if (!u) return;
-                
-                document.getElementById('nav-profile-img').src = u.avatar;
-                
-                document.getElementById('p-username').textContent = u.username;
-                const privIcon = u.isPrivate ? '<i data-lucide="lock" class="w-3 h-3 inline ml-1"></i>' : '';
-                document.getElementById('p-fullname').innerHTML = escapeHtml(u.fullname) + privIcon;
-                document.getElementById('p-bio').textContent = u.bio;
-                document.getElementById('p-avatar').src = u.avatar;
-                
-                // Gerçek Post Sayısı
-                const myPostCount = window.app.posts.filter(p => p.userId === userId).length;
-                document.getElementById('stat-posts').textContent = myPostCount;
-                document.getElementById('stat-followers').textContent = u.followersCount || 0;
-                document.getElementById('stat-following').textContent = u.followingCount || 0;
-
-                lucide.createIcons();
-            },
-
-            renderFeed: () => {
-                const container = document.getElementById('feed-container');
-                container.innerHTML = '';
-                
-                if (window.app.posts.length === 0) {
-                    container.innerHTML = `<div class="flex flex-col items-center justify-center p-10 text-gray-500 opacity-60"><i data-lucide="ghost" class="w-16 h-16 mb-4"></i><p>Akış boş. Bir şeyler paylaş!</p></div>`;
-                    lucide.createIcons();
-                    return;
-                }
-
-                window.app.posts.forEach(post => {
-                    const isAnon = post.isAnonymous;
-                    const username = isAnon ? 'Gizli Üye' : (post.username || 'Kullanıcı');
-                    const avatar = isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : (post.userAvatar || 'https://placehold.co/40x40');
-                    const time = post.createdAt ? timeSince(new Date(post.createdAt.seconds * 1000)) : 'Az önce';
-                    
-                    const isLiked = post.likes && post.likes[userId];
-                    const likeIconClass = isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400';
-                    const likeCount = post.likeCount || 0;
-
-                    let contentHtml = '';
-                    let contentClass = 'aspect-square';
-                    if (post.type === 'video') {
-                        contentHtml = `<video src="${post.imageUrl}" controls class="w-full h-full object-cover bg-black"></video>`;
-                    } else if (post.imageUrl) {
-                        contentHtml = `<img src="${post.imageUrl}" class="w-full h-full object-cover">`;
-                    } else {
-                        contentHtml = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-lg overflow-y-auto">${escapeHtml(post.caption)}</div>`;
-                        contentClass = 'min-h-[200px] h-auto p-4';
-                    }
-
-                    const el = document.createElement('div');
-                    el.className = 'bg-white dark:bg-carddark mb-4 border-b border-gray-100 dark:border-gray-800 pb-2';
-                    el.innerHTML = `
-                        <div class="flex items-center justify-between p-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full overflow-hidden border ${isAnon ? 'border-purple-500 bg-purple-100' : 'border-gray-200'}">
-                                    <img src="${avatar}" class="w-full h-full object-cover p-${isAnon ? '1' : '0'}">
-                                </div>
-                                <div>
-                                    <div class="font-bold text-sm flex items-center gap-1 dark:text-gray-100">
-                                        ${escapeHtml(username)}
-                                        ${isAnon ? '<i data-lucide="venetian-mask" class="w-3 h-3 text-purple-500"></i>' : ''}
-                                    </div>
-                                    <div class="text-[10px] text-gray-400 flex items-center gap-1">
-                                        ${post.location ? `<i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHtml(post.location)} •` : ''} 
-                                        ${time}
-                                    </div>
-                                </div>
-                            </div>
-                            <button onclick="window.app.reportContent('${post.id}', 'post')" class="text-gray-400 hover:text-red-500"><i data-lucide="flag" class="w-5 h-5"></i></button>
-                        </div>
-                        
-                        <div class="relative bg-gray-100 dark:bg-black ${contentClass} overflow-hidden flex items-center justify-center">
-                            ${contentHtml}
-                            ${isAnon ? '<div class="absolute bottom-3 right-3 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"><i data-lucide="eye-off" class="w-3 h-3"></i> Gizli</div>' : ''}
-                        </div>
-
-                        <div class="p-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex gap-4">
-                                    <button onclick="window.app.toggleLike('${post.id}', '${post.userId}')"><i data-lucide="heart" class="w-6 h-6 hover:text-red-500 transition-colors ${likeIconClass}"></i></button>
-                                    <button onclick="window.app.openComments('${post.id}', '${post.userId}')"><i data-lucide="message-circle" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i></button>
-                                </div>
-                                <button onclick="window.showToast('Kaydedildi')"><i data-lucide="bookmark" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i></button>
-                            </div>
-                            <div class="font-semibold text-sm mb-1 dark:text-white">${likeCount} beğenme</div>
-                            <div class="text-sm dark:text-gray-300">
-                                <span class="font-bold mr-1 dark:text-white">${escapeHtml(username)}</span>
-                                <span class="opacity-90">${post.type !== 'text' ? escapeHtml(post.caption) : ''}</span>
-                            </div>
-                            <div class="text-xs text-purple-500 mt-1">${escapeHtml(post.hashtag || '')}</div>
-                            <button onclick="window.app.openComments('${post.id}', '${post.userId}')" class="text-xs text-gray-400 mt-1 cursor-pointer">Yorumları gör...</button>
-                        </div>
-                    `;
-                    container.appendChild(el);
-                });
-                lucide.createIcons();
-            },
-
-            renderStories: () => {
-                const container = document.getElementById('stories-container');
-                container.innerHTML = '';
-                
-                // Kendi hikayemiz (Yeni hikaye ekle butonu)
-                const myStoryEl = document.createElement('div');
-                myStoryEl.className = 'flex flex-col items-center cursor-pointer';
-                myStoryEl.onclick = () => window.app.openUpload('story');
-                myStoryEl.innerHTML = `
-                    <div class="w-16 h-16 rounded-full border-2 border-purple-500 flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 mb-1">
-                        <i data-lucide="plus" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <span class="text-xs mt-1 dark:text-white">Sizin</span>
-                `;
-                container.appendChild(myStoryEl);
-
-                // Diğer kullanıcıların hikayeleri
-                const uniqueStories = {};
-                window.app.stories.forEach(story => {
-                    if (!uniqueStories[story.userId]) {
-                        uniqueStories[story.userId] = story;
-                    }
-                });
-
-                Object.values(uniqueStories).forEach(story => {
-                    const el = document.createElement('div');
-                    el.className = 'flex flex-col items-center cursor-pointer';
-                    el.onclick = () => {
-                        const userStories = window.app.stories.filter(s => s.userId === story.userId);
-                        window.app.viewStory(userStories);
-                    };
-                    el.innerHTML = `
-                        <div class="story-ring w-16 h-16 mb-1">
-                            <img src="${story.userAvatar}" class="w-full h-full rounded-full object-cover p-0.5">
-                        </div>
-                        <span class="text-xs truncate max-w-[60px] dark:text-white">${escapeHtml(story.username)}</span>
-                    `;
-                    container.appendChild(el);
-                });
-
-                lucide.createIcons();
-            },
-
-            searchExplore: (term) => {
-                const grid = document.getElementById('explore-grid');
-                grid.innerHTML = '';
-                const searchTerm = term.toLowerCase();
-                
-                const filtered = window.app.posts.filter(p => 
-                    (p.caption && p.caption.toLowerCase().includes(searchTerm)) || 
-                    (p.hashtag && p.hashtag.toLowerCase().includes(searchTerm)) ||
-                    (p.username && p.username.toLowerCase().includes(searchTerm))
-                );
-
-                if (filtered.length === 0) {
-                    grid.innerHTML = '<div class="col-span-3 text-center p-5 text-gray-500">Sonuç bulunamadı.</div>';
-                    return;
-                }
-
-                filtered.forEach((post, i) => {
-                     const div = document.createElement('div');
-                    const isLarge = i % 5 === 0;
-                    div.className = `relative overflow-hidden cursor-pointer bg-gray-100 dark:bg-gray-800 aspect-square ${isLarge ? 'col-span-2 row-span-2' : ''}`;
-                    const content = post.type === 'video' 
-                        ? `<video src="${post.imageUrl}" class="w-full h-full object-cover" muted></video>`
-                        : (post.imageUrl ? `<img src="${post.imageUrl}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-purple-500 flex items-center justify-center text-white text-xs p-2 text-center">${escapeHtml(post.caption)}</div>`);
-                    div.innerHTML = content;
-                    grid.appendChild(div);
-                });
-            },
-
-            renderExplore: () => {
-                // İlk yüklemede tüm postları göster (arama boş)
-                window.app.searchExplore('');
-            },
-
-            renderProfilePosts: () => {
-                const container = document.getElementById('profile-grid');
-                container.innerHTML = '';
-                const myPosts = window.app.posts.filter(p => p.userId === userId);
-                myPosts.forEach(post => {
-                    const div = document.createElement('div');
-                    div.className = 'aspect-square relative overflow-hidden bg-gray-100 dark:bg-gray-800 border dark:border-gray-800';
-                    div.innerHTML = post.imageUrl 
-                        ? `<img src="${post.imageUrl}" class="w-full h-full object-cover">`
-                        : `<div class="w-full h-full bg-indigo-500 flex items-center justify-center text-white text-xs p-2 text-center">${escapeHtml(post.caption)}</div>`;
-                    container.appendChild(div);
-                });
-            },
-
-            renderNotifications: () => {
-                const container = document.getElementById('notifications-list');
-                container.innerHTML = '';
-                
-                if (window.app.notifications.length === 0) {
-                    container.innerHTML = '<div class="text-center text-gray-500 mt-10">Henüz bildirim yok.</div>';
-                    return;
-                }
-
-                window.app.notifications.forEach(n => {
-                    const icon = n.type === 'like' ? 'heart' : (n.type === 'comment' ? 'message-circle' : 'bell');
-                    const color = n.type === 'like' ? 'text-red-500' : 'text-purple-500';
-                    const time = n.createdAt ? timeSince(new Date(n.createdAt.seconds * 1000)) : '';
-
-                    const el = document.createElement('div');
-                    el.className = 'flex items-center p-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-carddark hover:bg-gray-50 dark:hover:bg-gray-800';
-                    el.innerHTML = `
-                        <div class="mr-3 ${color}"><i data-lucide="${icon}" class="w-6 h-6"></i></div>
-                        <img src="${n.fromAvatar}" class="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200">
-                        <div class="flex-1 text-sm dark:text-gray-200">
-                            <span class="font-bold">${escapeHtml(n.fromUser)}</span> ${escapeHtml(n.text)}
-                        </div>
-                        <div class="text-xs text-gray-400">${time}</div>
-                    `;
-                    container.appendChild(el);
-                });
-                lucide.createIcons();
-            },
-
-            renderChatList: () => {
-                const container = document.getElementById('chat-list');
-                container.innerHTML = '';
-
-                if (window.app.chats.length === 0) {
-                    container.innerHTML = `<div class="text-center text-gray-500 mt-10"><i data-lucide="message-square" class="w-8 h-8 mx-auto mb-2"></i><p>Sohbet başlatmak için + butonuna bas.</p></div>`;
-                    lucide.createIcons();
-                    return;
-                }
-
-                window.app.chats.forEach(chat => {
-                    const otherUserId = chat.participants.find(id => id !== userId);
-                    const otherName = chat.names && chat.names[otherUserId] ? chat.names[otherUserId] : 'Anonim Kullanıcı';
-                    const lastMsg = chat.lastMessage ? chat.lastMessage : 'Mesaj yok.';
-                    const lastTime = chat.lastMessageTime ? timeSince(new Date(chat.lastMessageTime.seconds * 1000)) : '';
-
-                    const el = document.createElement('div');
-                    el.className = 'flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800';
-                    el.onclick = () => window.app.openChat(chat.id, otherName);
-                    el.innerHTML = `
-                        <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${otherUserId || 'chat'}" class="w-12 h-12 rounded-full object-cover mr-3 bg-gray-200">
-                        <div class="flex-1 overflow-hidden">
-                            <div class="font-semibold dark:text-white truncate">${escapeHtml(otherName)}</div>
-                            <div class="text-sm text-gray-500 truncate dark:text-gray-400">${escapeHtml(lastMsg)}</div>
-                        </div>
-                        <div class="text-xs text-gray-400 whitespace-nowrap ml-2">${lastTime}</div>
-                    `;
-                    container.appendChild(el);
-                });
-            },
-
-            // --- YENİ KULLANICI ARAMA FONKSİYONLARI ---
-            openUserSearch: () => {
-                document.getElementById('user-search-modal').style.display = 'flex';
-                document.getElementById('user-search-input').value = '';
-                document.getElementById('user-search-results').innerHTML = '';
-            },
-
-            searchUsers: async (term) => {
-                const container = document.getElementById('user-search-results');
-                if (term.length < 2) {
-                    container.innerHTML = '';
-                    return;
-                }
-
-                try {
-                    container.innerHTML = '<div class="text-center p-2 text-gray-500">Aranıyor...</div>';
-                    
-                    // Gönderisi olan kullanıcıları bul (Postlardan unique kullanıcıları çek)
-                    const uniqueUsers = {};
-                    window.app.posts.forEach(p => {
-                        if (!p.isAnonymous && p.username.toLowerCase().includes(term.toLowerCase()) && p.userId !== userId) {
-                            uniqueUsers[p.userId] = { username: p.username, avatar: p.userAvatar };
-                        }
-                    });
-
-                    container.innerHTML = '';
-                    if (Object.keys(uniqueUsers).length === 0) {
-                        container.innerHTML = '<div class="text-center p-2 text-gray-500">Kullanıcı bulunamadı (Sadece gönderisi olanlar aranabilir)</div>';
-                        return;
-                    }
-
-                    Object.keys(uniqueUsers).forEach(uid => {
-                        const u = uniqueUsers[uid];
-                        const el = document.createElement('div');
-                        el.className = 'flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer rounded-lg';
-                        el.onclick = () => window.app.startChat(uid, u.username);
-                        el.innerHTML = `
-                            <img src="${u.avatar}" class="w-10 h-10 rounded-full mr-3">
-                            <span class="font-bold dark:text-white">${escapeHtml(u.username)}</span>
-                        `;
-                        container.appendChild(el);
-                    });
-
-                } catch (e) {
-                    console.error(e);
-                    container.innerHTML = 'Hata oluştu.';
-                }
-            },
-
-            startChat: async (targetUserId, targetUserName) => {
-                document.getElementById('user-search-modal').style.display = 'none';
-                
-                // Zaten var olan sohbeti kontrol et
-                const existingChat = window.app.chats.find(c => c.participants.includes(targetUserId));
-                if (existingChat) {
-                    window.app.openChat(existingChat.id, targetUserName);
-                    return;
-                }
-
-                // Yoksa yeni oluştur
-                try {
-                    // Chat ID deterministik olsun (uid1_uid2 sıralı) böylece mükerrer oluşmaz
-                    const sortedIds = [userId, targetUserId].sort();
-                    const chatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
-                    
-                    const chatData = {
-                        participants: [userId, targetUserId],
-                        names: {
-                            [userId]: window.app.currentUserData.username,
-                            [targetUserId]: targetUserName
-                        },
-                        lastMessage: 'Sohbet başladı',
-                        lastMessageTime: serverTimestamp(),
-                        createdAt: serverTimestamp()
-                    };
-                    
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', chatId), chatData);
-                    window.app.openChat(chatId, targetUserName);
-                } catch (e) {
-                    window.showToast("Sohbet oluşturulamadı.");
-                }
-            },
-
-            // --- BİLDİRİM GÖNDERME ---
-            sendNotification: async (toUserId, type, text) => {
-                if (toUserId === userId) return; // Kendine bildirim atma
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', toUserId, 'notifications'), {
-                        fromUser: window.app.currentUserData.username,
-                        fromAvatar: window.app.currentUserData.avatar,
-                        type: type,
-                        text: text,
-                        isRead: false,
-                        createdAt: serverTimestamp()
-                    });
-                } catch(e) { console.error("Bildirim hatası", e); }
-            },
-
-            toggleLike: async (postId, postOwnerId) => {
-                const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
-                const post = window.app.posts.find(p => p.id === postId);
-                if (!post) return;
-
-                const isLiked = post.likes && post.likes[userId];
-                
-                try {
-                    if (isLiked) {
-                        const newLikes = { ...post.likes };
-                        delete newLikes[userId];
-                        await updateDoc(postRef, {
-                            likes: newLikes,
-                            likeCount: Math.max((post.likeCount || 1) - 1, 0)
-                        });
-                    } else {
-                        await updateDoc(postRef, {
-                            [`likes.${userId}`]: true,
-                            likeCount: (post.likeCount || 0) + 1
-                        });
-                        // Bildirim Gönder
-                        await window.app.sendNotification(postOwnerId, 'like', 'gönderini beğendi.');
-                    }
-                } catch(e) { console.error("Like error", e); }
-            },
-
-            renderChatMessages: () => {
-                const container = document.getElementById('chat-messages');
-                container.innerHTML = '';
-                
-                window.app.activeChatMessages.forEach(msg => {
-                    const isOwn = msg.senderId === userId;
-                    const isAnon = msg.isAnonymous;
-                    const time = msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-                    
-                    let content;
-                    if (msg.type === 'text') {
-                        content = `<p class="${isOwn ? 'text-white' : 'dark:text-white'}">${escapeHtml(msg.content)}</p>`;
-                    } else if (msg.type === 'image') {
-                        content = `<img src="${msg.content}" class="max-w-xs max-h-48 rounded-lg object-contain">`;
-                    }
-                    
-                    const el = document.createElement('div');
-                    el.className = `flex ${isOwn ? 'justify-end' : 'justify-start'} w-full`;
-                    el.innerHTML = `
-                        <div class="message-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
-                            ${isAnon && !isOwn ? `<span class="block text-[10px] font-bold opacity-70 mb-1 flex items-center gap-1"><i data-lucide="venetian-mask" class="w-3 h-3"></i> Anonim</span>` : ''}
-                            ${content}
-                            <div class="text-[9px] opacity-70 text-right mt-1">${time}</div>
-                        </div>
-                    `;
-                    container.appendChild(el);
-                });
-                
-                container.scrollTop = container.scrollHeight;
-                lucide.createIcons();
-            },
-
-            openChat: (chatId, chatName) => {
-                window.app.activeChatId = chatId;
-                document.getElementById('chat-name').textContent = chatName;
-                document.getElementById('chat-messages').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Yükleniyor...</div>';
-                window.app.switchTab('messages-view');
-                document.getElementById('chat-list-view').style.display = 'none';
-                document.getElementById('chat-detail-view').style.display = 'flex';
-                
-                const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
-                const q = query(messagesRef, where('chatId', '==', chatId), orderBy('createdAt', 'asc'), limit(100));
-                
-                window.unsubscribeMessages = onSnapshot(q, (snap) => {
-                    window.app.activeChatMessages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    window.app.renderChatMessages();
-                });
-            },
-
-            closeChat: () => {
-                document.getElementById('chat-list-view').style.display = 'block';
-                document.getElementById('chat-detail-view').style.display = 'none';
-                window.app.activeChatId = null;
-                if(window.unsubscribeMessages) window.unsubscribeMessages();
-                window.app.renderChatList();
-            },
-
-            sendMessage: async () => {
-                const input = document.getElementById('chat-input');
-                const text = input.value.trim();
-                const isAnon = document.getElementById('chat-anon-check').checked;
-
-                if (!text || !window.app.activeChatId) return;
-
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
-                        chatId: window.app.activeChatId,
-                        senderId: userId,
-                        senderName: window.app.currentUserData.username,
-                        content: text,
-                        type: 'text',
-                        isAnonymous: isAnon,
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', window.app.activeChatId), {
-                        lastMessage: text,
-                        lastMessageTime: serverTimestamp()
-                    });
-                    
-                    input.value = '';
-                } catch(e) {
-                    window.showToast("Mesaj gönderilemedi.");
-                }
-            },
-
-            uploadFile: null,
-            uploadType: 'post',
-
-            openUpload: (type = 'post') => {
-                document.getElementById('upload-modal').style.display = 'flex';
-                document.getElementById('upload-type-title').innerText = type === 'story' ? 'Yeni Hikaye (24s)' : 'Yeni Gönderi';
-                window.app.uploadType = type;
-                document.getElementById('file-input').value = '';
-                document.getElementById('preview-container').innerHTML = '';
-                document.getElementById('post-caption').value = '';
-                window.app.uploadFile = null;
-            },
-            
-            closeUpload: () => {
-                document.getElementById('upload-modal').style.display = 'none';
-                document.getElementById('preview-container').innerHTML = '';
-                document.getElementById('file-input').value = '';
-                window.app.uploadFile = null;
-            },
-
-            previewFile: (input) => {
-                if (input.files && input.files[0]) {
-                    const file = input.files[0];
-                    if (file.size > 5 * 1024 * 1024) {
-                        window.showToast("Dosya boyutu çok büyük (Max 5MB)");
-                        return;
-                    }
-                    window.app.uploadFile = file;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const container = document.getElementById('preview-container');
-                        if (file.type.startsWith('video')) {
-                            container.innerHTML = `<video src="${e.target.result}" controls class="w-full max-h-60 rounded-lg"></video>`;
-                        } else {
-                            container.innerHTML = `<img src="${e.target.result}" class="w-full max-h-60 object-contain rounded-lg">`;
-                        }
-                    };
-                    reader.readAsDataURL(file);
-                }
-            },
-
-            sharePost: async () => {
-                const caption = document.getElementById('post-caption').value;
-                const isAnon = document.getElementById('anon-check').checked;
-                const location = document.getElementById('location-input').value;
-                const hashtag = document.getElementById('hashtag-input').value;
-                
-                if (!window.app.uploadFile && !caption) {
-                    window.showToast("İçerik gerekli.");
-                    return;
-                }
-                
-                let mediaUrl = null;
-                let mediaType = 'text';
-
-                if (window.app.uploadFile) {
-                    const file = window.app.uploadFile;
-                    mediaType = file.type.startsWith('video') ? 'video' : 'image';
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    await new Promise(r => reader.onload = r);
-                    mediaUrl = reader.result; 
-                }
-
-                try {
-                    const collectionName = window.app.uploadType === 'story' ? 'stories' : 'posts';
-                    const data = {
-                        userId: userId,
-                        username: window.app.currentUserData.username,
-                        userAvatar: window.app.currentUserData.avatar,
-                        imageUrl: mediaUrl,
-                        type: mediaType,
-                        caption: caption,
-                        location: location,
-                        hashtag: hashtag,
-                        isAnonymous: isAnon,
-                        likes: {},
-                        likeCount: 0,
-                        createdAt: serverTimestamp()
-                    };
-
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
-                    window.showToast("Paylaşıldı!");
-                    window.app.closeUpload();
-                } catch (e) {
-                    console.error("Paylaşım Hatası:", e);
-                    window.showToast("Paylaşılamadı: " + e.message);
-                }
-            },
-
-            openComments: (postId, postOwnerId) => {
-                window.currentPostId = postId;
-                window.currentPostOwnerId = postOwnerId;
-                document.getElementById('comments-modal').style.display = 'flex';
-                document.getElementById('comments-list').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Yükleniyor...</div>';
-                
-                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
-                const q = query(commentsRef, where('postId', '==', postId), orderBy('createdAt', 'asc'));
-                
-                window.unsubscribeComments = onSnapshot(q, (snap) => {
-                    const list = document.getElementById('comments-list');
-                    list.innerHTML = '';
-                    if (snap.empty) {
-                        list.innerHTML = '<div class="text-center text-gray-500 mt-4">İlk yorumu sen yap!</div>';
-                        return;
-                    }
-                    snap.forEach(doc => {
-                        const c = doc.data();
-                        const time = c.createdAt ? timeSince(new Date(c.createdAt.seconds * 1000)) : 'Şimdi';
-                        const el = document.createElement('div');
-                        el.className = 'flex gap-3 mb-4';
-                        el.innerHTML = `
-                             <img src="${c.userAvatar}" class="w-8 h-8 rounded-full bg-gray-200 object-cover">
-                             <div class="flex-1">
-                                <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none relative">
-                                    <div class="font-bold text-xs ${c.isAnonymous ? 'text-purple-500' : 'dark:text-white'}">${escapeHtml(c.username)}</div>
-                                    <div class="text-sm dark:text-gray-300 break-words">${escapeHtml(c.text)}</div>
-                                    <button onclick="window.app.reportContent('${doc.id}', 'comment')" class="absolute top-1 right-2 text-gray-400 hover:text-red-500"><i data-lucide="flag" class="w-3 h-3"></i></button>
-                                </div>
-                                <div class="text-[10px] text-gray-400 mt-1 pl-2">${time}</div>
-                             </div>
-                        `;
-                        list.appendChild(el);
-                    });
-                    lucide.createIcons();
-                });
-            },
-            
-            closeComments: () => {
-                document.getElementById('comments-modal').style.display = 'none';
-                if(window.unsubscribeComments) window.unsubscribeComments();
-            },
-
-            sendComment: async () => {
-                const text = document.getElementById('comment-input').value;
-                if (!text) return;
-                
-                const isAnon = document.getElementById('comment-anon-check').checked;
-                
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'comments'), {
-                        postId: window.currentPostId,
-                        userId: userId,
-                        username: isAnon ? 'Gizli Üye' : window.app.currentUserData.username,
-                        userAvatar: isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : window.app.currentUserData.avatar,
-                        text: text,
-                        isAnonymous: isAnon,
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    // Bildirim
-                    await window.app.sendNotification(window.currentPostOwnerId, 'comment', 'gönderine yorum yaptı.');
-                    document.getElementById('comment-input').value = '';
-                } catch(e) {
-                    window.showToast("Yorum gönderilemedi.");
-                }
-            },
-            
-            viewStory: (storyItems) => {
-                if(!storyItems || storyItems.length === 0) return;
-                window.storyQueue = storyItems;
-                window.currentStoryIndex = 0;
-                
-                document.getElementById('story-viewer').style.display = 'flex';
-                document.getElementById('story-progress-bars').innerHTML = storyItems.map(() => '<div class="story-viewer-progress"><div class="story-viewer-bar"></div></div>').join('');
-                window.app.playStory();
-            },
-
-            playStory: () => {
-                clearTimeout(window.storyTimeout);
-                if (window.currentStoryIndex >= window.storyQueue.length) {
-                    document.getElementById('story-viewer').style.display = 'none';
-                    return;
-                }
-                
-                const story = window.storyQueue[window.currentStoryIndex];
-                const content = document.getElementById('story-content');
-                
-                content.innerHTML = '';
-                if (story.type === 'video') {
-                    content.innerHTML = `<video id="story-video" src="${story.imageUrl}" autoplay class="w-full h-full object-cover"></video>`;
-                } else if (story.imageUrl) {
-                    content.innerHTML = `<img src="${story.imageUrl}" class="w-full h-full object-cover">`;
-                } else {
-                     content.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-xl">${escapeHtml(story.caption)}</div>`;
-                }
-
-                document.getElementById('story-user-img').src = story.userAvatar;
-                document.getElementById('story-username').textContent = story.username;
-                document.getElementById('story-time').textContent = story.createdAt ? timeSince(new Date(story.createdAt.seconds * 1000)) : 'Şimdi';
-
-                Array.from(document.getElementById('story-progress-bars').children).forEach((bar, index) => {
-                    const barEl = bar.querySelector('.story-viewer-bar');
-                    if (index < window.currentStoryIndex) {
-                        barEl.style.width = '100%';
-                        barEl.style.transition = 'none';
-                    } else if (index === window.currentStoryIndex) {
-                        barEl.style.width = '0%';
-                        barEl.style.transition = 'none';
-                        requestAnimationFrame(() => {
-                             barEl.style.transition = 'width 5s linear';
-                             barEl.style.width = '100%';
-                        });
-                    } else {
-                        barEl.style.width = '0%';
-                        barEl.style.transition = 'none';
-                    }
-                });
-
-                window.storyTimeout = setTimeout(() => {
-                    window.currentStoryIndex++;
-                    window.app.playStory();
-                }, 5000); 
-            },
-
-            closeStory: () => {
-                clearTimeout(window.storyTimeout);
-                document.getElementById('story-viewer').style.display = 'none';
-            },
-
-            openEditProfile: () => {
-                const u = window.app.currentUserData;
-                document.getElementById('edit-profile-modal').style.display = 'flex';
-                document.getElementById('edit-username').value = u.username;
-                document.getElementById('edit-bio').value = u.bio;
-            },
-            
-            saveProfile: async () => {
-                const newUsername = document.getElementById('edit-username').value;
-                const newBio = document.getElementById('edit-bio').value;
-                
-                if (newUsername.length < 3) {
-                    window.showToast("Takma ad çok kısa.");
-                    return;
-                }
-
-                try {
-                    const userRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
-                    await updateDoc(userRef, {
-                        username: newUsername,
-                        bio: newBio
-                    });
-                    window.showToast("Profil güncellendi.");
-                    document.getElementById('edit-profile-modal').style.display = 'none';
-                } catch(e) {
-                     window.showToast("Güncelleme hatası.");
-                }
-            },
-
-            deleteAccount: async () => {
-                document.getElementById('confirm-modal-text').innerText = "Hesabını kalıcı olarak silmek istediğine emin misin?";
-                document.getElementById('confirm-modal-action').onclick = async () => {
-                    document.getElementById('confirm-modal').style.display = 'none';
-                    try {
-                        await deleteUser(auth.currentUser);
-                        window.app.resetState();
-                        window.showToast("Hesabınız silindi.");
-                    } catch(e) {
-                        window.showToast("Bu işlem için yeniden giriş yapmalısınız.");
-                    }
-                };
-                document.getElementById('confirm-modal').style.display = 'flex';
-            },
-            
-            reportContent: (id, type) => {
-                 document.getElementById('confirm-modal-text').innerText = "Bu içeriği şikayet etmek istediğine emin misin?";
-                 document.getElementById('confirm-modal-action').onclick = async () => {
-                    document.getElementById('confirm-modal').style.display = 'none';
-                    window.showToast("Şikayet alındı, teşekkürler.");
-                 };
-                 document.getElementById('confirm-modal').style.display = 'flex';
-            },
-
-            switchTab: (viewId) => {
-                document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-                document.getElementById(viewId).classList.add('active');
-                
-                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-purple-500'));
-                const activeBtn = document.querySelector(`.nav-btn[onclick="window.app.switchTab('${viewId}')"]`);
-                if(activeBtn) activeBtn.classList.add('text-purple-500');
-
-                if (viewId === 'messages-view' && window.unsubscribeMessages) {
-                    window.app.closeChat();
-                }
-                
-                // Header güncelleme
-                const headerTitle = document.getElementById('header-title');
-                if (viewId === 'feed-view') headerTitle.innerText = 'Gramano';
-                if (viewId === 'explore-view') headerTitle.innerText = 'Keşfet';
-                if (viewId === 'messages-view') headerTitle.innerText = 'Sohbetler';
-                if (viewId === 'notifications-view') headerTitle.innerText = 'Bildirimler';
-                if (viewId === 'profile-view') headerTitle.innerText = window.app.currentUserData?.username || 'Profil';
-            },
-
-            toggleTheme: () => {
-                const body = document.body;
-                body.classList.toggle('dark');
-            },
-
-            logout: async () => {
-                await signOut(auth);
-                window.app.resetState();
-            }
-        };
-
-        // Başlat
-        initFirebase();
-        document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
-    </script>
-
     <!-- AUTH SCREEN -->
-    <div id="auth-view" class="full-screen-overlay justify-center items-center p-6 bg-gradient-to-br from-purple-900 to-black text-white">
+    <div id="auth-view" class="full-screen-overlay justify-center items-center p-6 bg-gradient-to-br from-purple-900 to-black text-white" style="display: flex;">
         <div class="w-full max-w-sm text-center">
             <div class="mb-8">
                 <i data-lucide="ghost" class="w-16 h-16 mx-auto mb-2 text-purple-400"></i>
@@ -1171,10 +148,10 @@
                 <input type="email" id="auth-email" placeholder="E-posta" class="w-full p-3 rounded-lg bg-black/40 border border-purple-500/30 text-white mb-3 focus:outline-none focus:border-purple-500">
                 <input type="password" id="auth-password" placeholder="Şifre (min 6 hane)" class="w-full p-3 rounded-lg bg-black/40 border border-purple-500/30 text-white mb-4 focus:outline-none focus:border-purple-500">
                 
-                <button onclick="window.handleAuth(false)" class="w-full p-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold mb-2 transition-colors shadow-lg shadow-purple-900/50">Giriş Yap</button>
-                <button onclick="window.handleAuth(true)" class="w-full p-3 bg-transparent border border-purple-400/50 hover:bg-white/5 rounded-lg font-semibold text-purple-200 transition-colors mb-2">Hesap Oluştur</button>
+                <button onclick="handleAuth(false)" class="w-full p-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold mb-2 transition-colors shadow-lg shadow-purple-900/50">Giriş Yap</button>
+                <button onclick="handleAuth(true)" class="w-full p-3 bg-transparent border border-purple-400/50 hover:bg-white/5 rounded-lg font-semibold text-purple-200 transition-colors mb-2">Hesap Oluştur</button>
                 <div class="border-t border-white/10 my-2 pt-2">
-                    <button onclick="window.handleAnonAuth()" class="text-xs text-gray-400 hover:text-white underline">Misafir Girişi (Anonim)</button>
+                    <button onclick="handleAnonAuth()" class="text-xs text-gray-400 hover:text-white underline">Misafir Girişi (Anonim)</button>
                 </div>
             </div>
         </div>
@@ -1187,8 +164,8 @@
         <header id="main-header" class="h-[60px] border-b border-gray-100 dark:border-gray-800 flex justify-between items-center px-4 sticky top-0 bg-white/90 dark:bg-black/90 backdrop-blur z-20">
             <div class="text-2xl font-logo font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600" id="header-title">Gramano</div>
             <div class="flex gap-4">
-                <button onclick="window.app.toggleTheme()"><i data-lucide="moon" class="w-6 h-6 dark:text-white"></i></button>
-                <button class="relative" onclick="window.app.switchTab('notifications-view')">
+                <button onclick="toggleTheme()"><i data-lucide="moon" class="w-6 h-6 dark:text-white"></i></button>
+                <button class="relative" onclick="switchTab('notifications-view')">
                     <i data-lucide="bell" class="w-6 h-6 dark:text-white"></i>
                     <span id="notif-badge" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-black" style="display:none;"></span>
                 </button>
@@ -1209,13 +186,13 @@
                 <div class="p-3 sticky top-0 bg-white dark:bg-darkbg z-10">
                     <div class="relative">
                         <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
-                        <input type="text" placeholder="Gönderi, etiket veya kişi ara..." oninput="window.app.searchExplore(this.value)" class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm focus:outline-none dark:text-white">
+                        <input type="text" placeholder="Gönderi, etiket veya kişi ara..." oninput="searchExplore(this.value)" class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm focus:outline-none dark:text-white">
                     </div>
                 </div>
                 <div id="explore-grid" class="grid grid-cols-3 gap-0.5 pb-20"></div>
             </div>
             
-            <!-- NOTIFICATIONS (YENİ) -->
+            <!-- NOTIFICATIONS -->
             <div id="notifications-view" class="view">
                 <div id="notifications-list" class="pb-20"></div>
             </div>
@@ -1224,16 +201,15 @@
             <div id="messages-view" class="view flex flex-col">
                 <div id="chat-list-view" class="flex-1 overflow-y-auto relative">
                     <div id="chat-list" class="pt-2 pb-20"></div>
-                    <!-- Yeni Chat Butonu -->
-                    <button onclick="window.app.openUserSearch()" class="absolute bottom-24 right-4 bg-purple-600 text-white p-3 rounded-full shadow-lg z-10">
+                    <button onclick="openUserSearch()" class="absolute bottom-24 right-4 bg-purple-600 text-white p-3 rounded-full shadow-lg z-10">
                         <i data-lucide="plus" class="w-6 h-6"></i>
                     </button>
                 </div>
 
                 <!-- CHAT DETAIL -->
-                <div id="chat-detail-view" class="full-screen-overlay flex-col z-40" style="display:none; position:relative; background:var(--bg);">
+                <div id="chat-detail-view" class="full-screen-overlay flex-col" style="display:none;">
                     <div class="h-[60px] border-b border-gray-100 dark:border-gray-800 flex items-center px-4 bg-white dark:bg-darkbg">
-                        <button onclick="window.app.closeChat()" class="p-2"><i data-lucide="chevron-left" class="w-6 h-6 dark:text-white"></i></button>
+                        <button onclick="closeChat()" class="p-2"><i data-lucide="chevron-left" class="w-6 h-6 dark:text-white"></i></button>
                         <h2 id="chat-name" class="font-bold flex-1 ml-2 dark:text-white truncate">Sohbet</h2>
                     </div>
                     <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-gray-50 dark:bg-black"></div>
@@ -1243,8 +219,8 @@
                             <input type="checkbox" id="chat-anon-check" class="hidden">
                             <i data-lucide="venetian-mask" class="w-4 h-4 text-purple-600 dark:text-purple-300"></i>
                         </label>
-                        <input type="text" id="chat-input" placeholder="Mesaj gönder..." class="flex-1 p-2 bg-gray-100 dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white">
-                        <button onclick="window.app.sendMessage()" class="text-purple-600 font-bold text-sm px-2">Gönder</button>
+                        <input type="text" id="chat-input" placeholder="Mesaj gönder..." class="flex-1 p-2 bg-gray-100 dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white" onkeypress="if(event.key === 'Enter') sendMessage()">
+                        <button onclick="sendMessage()" class="text-purple-600 font-bold text-sm px-2">Gönder</button>
                     </div>
                 </div>
             </div>
@@ -1279,8 +255,8 @@
                     </div>
 
                     <div class="flex gap-2 mb-6">
-                        <button onclick="window.app.openEditProfile()" class="flex-1 bg-gray-100 dark:bg-gray-800 py-2 rounded-lg text-sm font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Profili Düzenle</button>
-                        <button onclick="window.app.logout()" class="w-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                        <button onclick="openEditProfile()" class="flex-1 bg-gray-100 dark:bg-gray-800 py-2 rounded-lg text-sm font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Profili Düzenle</button>
+                        <button onclick="logout()" class="w-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><i data-lucide="log-out" class="w-4 h-4"></i></button>
                     </div>
                     
                     <div class="flex border-b border-gray-200 dark:border-gray-800 mb-1">
@@ -1293,12 +269,12 @@
 
         <!-- BOTTOM NAV -->
         <nav id="bottom-nav" class="h-[60px] border-t border-gray-100 dark:border-gray-800 flex justify-around items-center bg-white dark:bg-black fixed bottom-0 w-full z-30 pb-safe">
-            <button class="nav-btn text-purple-500" onclick="window.app.switchTab('feed-view')"><i data-lucide="home" class="w-7 h-7"></i></button>
-            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="window.app.switchTab('explore-view')"><i data-lucide="compass" class="w-7 h-7"></i></button>
-            <button class="nav-btn bg-purple-600 text-white rounded-xl p-2 -mt-6 shadow-lg shadow-purple-500/30" onclick="window.app.openUpload()"><i data-lucide="plus" class="w-7 h-7"></i></button>
-            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="window.app.switchTab('messages-view')"><i data-lucide="message-square" class="w-7 h-7"></i></button>
-            <button class="nav-btn" onclick="window.app.switchTab('profile-view')">
-                <img id="nav-profile-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E" class="w-7 h-7 rounded-full border border-gray-300 object-cover bg-white">
+            <button class="nav-btn text-purple-500" onclick="switchTab('feed-view')"><i data-lucide="home" class="w-7 h-7"></i></button>
+            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="switchTab('explore-view')"><i data-lucide="compass" class="w-7 h-7"></i></button>
+            <button class="nav-btn bg-purple-600 text-white rounded-xl p-2 -mt-6 shadow-lg shadow-purple-500/30" onclick="openUpload()"><i data-lucide="plus" class="w-7 h-7"></i></button>
+            <button class="nav-btn text-gray-400 dark:text-gray-500" onclick="switchTab('messages-view')"><i data-lucide="message-square" class="w-7 h-7"></i></button>
+            <button class="nav-btn" onclick="switchTab('profile-view')">
+                <img id="nav-profile-img" src="https://api.dicebear.com/7.x/identicon/svg?seed=default" class="w-7 h-7 rounded-full border border-gray-300 object-cover bg-white">
             </button>
         </nav>
     </div>
@@ -1307,9 +283,9 @@
     <div id="upload-modal" class="full-screen-overlay justify-end bg-black/60 z-50 backdrop-blur-sm" style="display:none;">
         <div class="bg-white dark:bg-carddark w-full rounded-t-3xl overflow-hidden shadow-2xl h-[90vh] flex flex-col animate-slide-up">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                <button onclick="window.app.closeUpload()" class="text-red-500 font-medium">İptal</button>
+                <button onclick="closeUpload()" class="text-red-500 font-medium">İptal</button>
                 <span id="upload-type-title" class="font-bold dark:text-white">Yeni Gönderi</span>
-                <button onclick="window.app.sharePost()" class="text-purple-600 font-bold">Paylaş</button>
+                <button onclick="sharePost()" class="text-purple-600 font-bold">Paylaş</button>
             </div>
             
             <div class="p-5 flex-1 overflow-y-auto">
@@ -1332,7 +308,7 @@
                             <i data-lucide="image-plus" class="w-10 h-10 mx-auto mb-2"></i>
                             <span class="text-sm">Medya Seç</span>
                         </div>
-                        <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="window.app.previewFile(this)">
+                        <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="previewFile(this)">
                         <div id="preview-container" class="absolute inset-0 w-full h-full bg-black flex items-center justify-center pointer-events-none"></div>
                     </label>
                 </div>
@@ -1351,7 +327,7 @@
         <div class="bg-white dark:bg-carddark w-full h-[75vh] rounded-t-3xl shadow-2xl flex flex-col animate-slide-up">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
                 <span class="font-bold dark:text-white">Yorumlar</span>
-                <button onclick="window.app.closeComments()" class="p-1"><i data-lucide="x" class="dark:text-white"></i></button>
+                <button onclick="closeComments()" class="p-1"><i data-lucide="x" class="dark:text-white"></i></button>
             </div>
             <div id="comments-list" class="flex-1 overflow-y-auto p-4"></div>
             <div class="p-3 border-t border-gray-100 dark:border-gray-800 flex gap-2 items-center bg-gray-50 dark:bg-black">
@@ -1359,8 +335,8 @@
                     <input type="checkbox" id="comment-anon-check" class="hidden">
                     <i data-lucide="venetian-mask" class="w-4 h-4 text-purple-600 dark:text-purple-300"></i>
                 </label>
-                <input type="text" id="comment-input" placeholder="Yorum yap..." class="flex-1 p-2 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white">
-                <button onclick="window.app.sendComment()" class="text-purple-600 font-bold text-sm px-2">Paylaş</button>
+                <input type="text" id="comment-input" placeholder="Yorum yap..." class="flex-1 p-2 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-sm dark:text-white" onkeypress="if(event.key === 'Enter') sendComment()">
+                <button onclick="sendComment()" class="text-purple-600 font-bold text-sm px-2">Paylaş</button>
             </div>
         </div>
     </div>
@@ -1372,7 +348,7 @@
                 <h3 class="font-bold text-lg dark:text-white">Yeni Sohbet</h3>
                 <button onclick="document.getElementById('user-search-modal').style.display='none'"><i data-lucide="x" class="dark:text-white"></i></button>
             </div>
-            <input type="text" id="user-search-input" placeholder="Kullanıcı adı ara..." oninput="window.app.searchUsers(this.value)" class="w-full p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm mb-4 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <input type="text" id="user-search-input" placeholder="Kullanıcı adı ara..." oninput="searchUsers(this.value)" class="w-full p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm mb-4 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
             <div id="user-search-results" class="max-h-60 overflow-y-auto flex flex-col gap-1"></div>
          </div>
     </div>
@@ -1388,15 +364,15 @@
                     <span id="story-username" class="text-white font-bold text-sm shadow-md"></span>
                     <span id="story-time" class="text-gray-300 text-xs shadow-md"></span>
                 </div>
-                <button onclick="window.app.closeStory()" class="z-30 text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+                <button onclick="closeStory()" class="z-30 text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             
             <div id="story-content" class="w-full h-full"></div>
 
-            <button onclick="window.currentStoryIndex--; window.app.playStory()" class="absolute left-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-start opacity-0 hover:opacity-100 transition-opacity p-2">
+            <button onclick="if(window.currentStoryIndex > 0) { window.currentStoryIndex--; playStory(); }" class="absolute left-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-start opacity-0 hover:opacity-100 transition-opacity p-2">
                  <i data-lucide="chevron-left" class="w-8 h-8 bg-black/30 rounded-full p-1"></i>
             </button>
-            <button onclick="window.currentStoryIndex++; window.app.playStory()" class="absolute right-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-end opacity-0 hover:opacity-100 transition-opacity p-2">
+            <button onclick="if(window.currentStoryIndex < window.storyQueue.length - 1) { window.currentStoryIndex++; playStory(); }" class="absolute right-0 top-0 bottom-0 w-1/4 z-10 text-white flex items-center justify-end opacity-0 hover:opacity-100 transition-opacity p-2">
                 <i data-lucide="chevron-right" class="w-8 h-8 bg-black/30 rounded-full p-1"></i>
             </button>
         </div>
@@ -1417,9 +393,9 @@
                 </div>
                 <div class="pt-2 flex gap-3">
                     <button onclick="document.getElementById('edit-profile-modal').style.display='none'" class="flex-1 py-2 text-gray-500">İptal</button>
-                    <button onclick="window.app.saveProfile()" class="flex-1 py-2 bg-purple-600 text-white rounded font-bold">Kaydet</button>
+                    <button onclick="saveProfile()" class="flex-1 py-2 bg-purple-600 text-white rounded font-bold">Kaydet</button>
                 </div>
-                <button onclick="window.app.deleteAccount()" class="w-full py-2 text-red-500 text-xs mt-2">Hesabı Sil</button>
+                <button onclick="deleteAccount()" class="w-full py-2 text-red-500 text-xs mt-2">Hesabı Sil</button>
             </div>
         </div>
     </div>
@@ -1435,5 +411,1296 @@
             </div>
         </div>
     </div>
+
+<script type="module">
+// ========== GLOBAL DEĞİŞKENLER ==========
+let app, auth, db;
+let userId = null;
+let unsubscribeListeners = [];
+let currentPostId = null;
+let currentPostOwnerId = null;
+let storyQueue = [];
+let currentStoryIndex = 0;
+let storyTimeout = null;
+let unsubscribeMessages = null;
+let unsubscribeComments = null;
+
+const appId = 'gramano-app';
+const firebaseConfig = {
+    apiKey: "AIzaSyBf95NYXP8HgIOQPJo9B5zTHXrqhgol-1c",
+    authDomain: "insta-17210.firebaseapp.com",
+    projectId: "insta-17210",
+    storageBucket: "insta-17210.firebasestorage.app",
+    messagingSenderId: "287281107154",
+    appId: "1:287281107154:web:db4100f2d055b96d1d5d0b",
+    measurementId: "G-VV5DQKPC5L"
+};
+
+// ========== STATE ==========
+const state = {
+    currentUserData: null,
+    posts: [],
+    stories: [],
+    chats: [],
+    notifications: [],
+    activeChatMessages: [],
+    activeChatId: null,
+    uploadFile: null,
+    uploadType: 'post'
+};
+
+// ========== YARDIMCI FONKSİYONLAR ==========
+const escapeHtml = (unsafe) => {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
+const showToast = (msg) => {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = msg;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+};
+
+const timeSince = (date) => {
+    if (!date) return '';
+    const seconds = Math.floor((Date.now() - date) / 1000);
+    if (seconds < 60) return "Şimdi";
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "ay";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "g";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "s";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "dk";
+    return "Şimdi";
+};
+
+// ========== FIREBASE İŞLEMLERİ ==========
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { 
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+    signInAnonymously, onAuthStateChanged, signOut, deleteUser
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { 
+    getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc,
+    collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, limit
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const initFirebase = async () => {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        
+        console.log("Firebase başarıyla başlatıldı");
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                console.log("Kullanıcı giriş yaptı:", user.uid);
+                await ensureUserProfile(user);
+                loadApp();
+            } else {
+                userId = null;
+                resetState();
+            }
+        });
+    } catch (error) {
+        console.error("Firebase başlatma hatası:", error);
+        showToast("Firebase bağlantı hatası: " + error.message);
+    }
+};
+
+const ensureUserProfile = async (user) => {
+    try {
+        const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+        const snap = await getDoc(userRef);
+        
+        if (!snap.exists()) {
+            const isAnon = user.isAnonymous;
+            const baseName = isAnon ? 'User' : (user.email ? user.email.split('@')[0] : 'User');
+            const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+            
+            await setDoc(userRef, {
+                username: `${baseName}_${randomSuffix}`.toLowerCase(),
+                email: user.email || null,
+                avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+                fullname: isAnon ? 'Anonim Gezgin' : baseName,
+                bio: 'Gramano dünyasında bir gezgin.',
+                isPrivate: false,
+                followersCount: 0,
+                followingCount: 0,
+                createdAt: serverTimestamp()
+            });
+        }
+    } catch (e) {
+        console.error("Profil oluşturma hatası:", e);
+    }
+};
+
+// ========== AUTH İŞLEMLERİ ==========
+const handleAuth = async (isRegister) => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    
+    if (!email || !password || password.length < 6) {
+        showToast("Lütfen geçerli bir e-posta ve en az 6 karakterli şifre girin.");
+        return;
+    }
+
+    try {
+        if (isRegister) {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showToast("Hesap oluşturuldu!");
+        } else {
+            await signInWithEmailAndPassword(auth, email, password);
+            showToast("Hoş geldiniz!");
+        }
+    } catch (error) {
+        console.error("Auth hatası:", error);
+        let msg = "İşlem başarısız.";
+        if (error.code === 'auth/email-already-in-use') msg = "Bu e-posta zaten kayıtlı.";
+        if (error.code === 'auth/invalid-credential') msg = "E-posta veya şifre hatalı.";
+        if (error.code === 'auth/user-not-found') msg = "Kullanıcı bulunamadı.";
+        if (error.code === 'auth/wrong-password') msg = "Şifre hatalı.";
+        showToast(msg);
+    }
+};
+
+const handleAnonAuth = async () => {
+    try {
+        await signInAnonymously(auth);
+        showToast("Misafir olarak giriş yapıldı");
+    } catch (e) {
+        console.error("Anonim giriş hatası:", e);
+        showToast("Misafir girişi başarısız: " + e.message);
+    }
+};
+
+// ========== APP STATE YÖNETİMİ ==========
+const resetState = () => {
+    unsubscribeListeners.forEach(u => u());
+    unsubscribeListeners = [];
+    
+    if (unsubscribeMessages) unsubscribeMessages();
+    if (unsubscribeComments) unsubscribeComments();
+    
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('auth-view').style.display = 'flex';
+    
+    state.currentUserData = null;
+    state.posts = [];
+    state.stories = [];
+    state.chats = [];
+    state.notifications = [];
+    state.activeChatMessages = [];
+    state.activeChatId = null;
+    state.uploadFile = null;
+    
+    currentPostId = null;
+    currentPostOwnerId = null;
+    storyQueue = [];
+    currentStoryIndex = 0;
+    clearTimeout(storyTimeout);
+};
+
+const loadApp = () => {
+    document.getElementById('auth-view').style.display = 'none';
+    document.getElementById('main-app').style.display = 'flex';
+    startListeners();
+    switchTab('feed-view');
+};
+
+const startListeners = () => {
+    unsubscribeListeners.forEach(u => u());
+    unsubscribeListeners = [];
+
+    // 1. Profil Dinleyicisi
+    const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+    unsubscribeListeners.push(onSnapshot(profileRef, (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            state.currentUserData = { 
+                id: userId, 
+                username: data.username || 'Kullanıcı',
+                fullname: data.fullname || '',
+                bio: data.bio || '',
+                avatar: data.avatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default',
+                followersCount: data.followersCount || 0,
+                followingCount: data.followingCount || 0,
+                isPrivate: data.isPrivate || false
+            };
+            updateProfileUI();
+        }
+    }));
+
+    // 2. Gönderiler
+    const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
+    const qPosts = query(postsRef, orderBy('createdAt', 'desc'), limit(50));
+    
+    unsubscribeListeners.push(onSnapshot(qPosts, (snap) => {
+        state.posts = snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            createdAt: d.data().createdAt || { seconds: Date.now() / 1000 }
+        }));
+        renderFeed();
+        renderExplore();
+        renderProfilePosts();
+    }));
+
+    // 3. Hikayeler
+    const storiesRef = collection(db, 'artifacts', appId, 'public', 'data', 'stories');
+    const qStories = query(storiesRef, orderBy('createdAt', 'desc'), limit(50));
+    
+    unsubscribeListeners.push(onSnapshot(qStories, (snap) => {
+        const now = Date.now();
+        state.stories = snap.docs
+            .map(d => ({ 
+                id: d.id, 
+                ...d.data(),
+                createdAt: d.data().createdAt || { seconds: Date.now() / 1000 }
+            }))
+            .filter(s => {
+                const storyTime = s.createdAt.seconds * 1000;
+                return (now - storyTime) < (24 * 60 * 60 * 1000);
+            });
+        renderStories();
+    }));
+
+    // 4. Sohbetler
+    const chatsRef = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
+    unsubscribeListeners.push(onSnapshot(chatsRef, (snap) => {
+        state.chats = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(c => c.participants && c.participants.includes(userId))
+            .sort((a, b) => {
+                const timeA = a.lastMessageTime?.seconds || 0;
+                const timeB = b.lastMessageTime?.seconds || 0;
+                return timeB - timeA;
+            });
+        renderChatList();
+    }));
+
+    // 5. Bildirimler
+    const notifRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
+    const qNotif = query(notifRef, orderBy('createdAt', 'desc'), limit(20));
+    
+    unsubscribeListeners.push(onSnapshot(qNotif, (snap) => {
+        state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderNotifications();
+        
+        const hasUnread = state.notifications.some(n => !n.isRead);
+        document.getElementById('notif-badge').style.display = hasUnread ? 'block' : 'none';
+    }));
+};
+
+// ========== UI UPDATE FONKSİYONLARI ==========
+const updateProfileUI = () => {
+    const u = state.currentUserData;
+    if (!u) return;
+    
+    document.getElementById('nav-profile-img').src = u.avatar;
+    document.getElementById('p-avatar').src = u.avatar;
+    document.getElementById('p-username').textContent = u.username;
+    
+    const privIcon = u.isPrivate ? '<i data-lucide="lock" class="w-3 h-3 inline ml-1"></i>' : '';
+    document.getElementById('p-fullname').innerHTML = escapeHtml(u.fullname) + privIcon;
+    document.getElementById('p-bio').textContent = u.bio;
+    
+    const myPostCount = state.posts.filter(p => p.userId === userId).length;
+    document.getElementById('stat-posts').textContent = myPostCount;
+    document.getElementById('stat-followers').textContent = u.followersCount || 0;
+    document.getElementById('stat-following').textContent = u.followingCount || 0;
+    
+    lucide.createIcons();
+};
+
+const renderFeed = () => {
+    const container = document.getElementById('feed-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (state.posts.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-10 text-gray-500 opacity-60">
+                <i data-lucide="ghost" class="w-16 h-16 mb-4"></i>
+                <p>Akış boş. İlk gönderiyi sen paylaş!</p>
+            </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    state.posts.forEach(post => {
+        const isAnon = post.isAnonymous;
+        const username = isAnon ? 'Gizli Üye' : (post.username || 'Kullanıcı');
+        const avatar = isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : (post.userAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default');
+        const time = post.createdAt ? timeSince(new Date(post.createdAt.seconds * 1000)) : 'Şimdi';
+        
+        const isLiked = post.likes && post.likes[userId];
+        const likeIconClass = isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400';
+        const likeCount = post.likeCount || 0;
+
+        let contentHtml = '';
+        let contentClass = 'aspect-square';
+        
+        if (post.type === 'video') {
+            contentHtml = `<video src="${post.imageUrl}" controls class="w-full h-full object-cover bg-black"></video>`;
+        } else if (post.imageUrl) {
+            contentHtml = `<img src="${post.imageUrl}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/600x600?text=Resim+Yüklenemedi'">`;
+        } else {
+            contentHtml = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-lg overflow-y-auto">${escapeHtml(post.caption || '')}</div>`;
+            contentClass = 'min-h-[200px] h-auto p-4';
+        }
+
+        const el = document.createElement('div');
+        el.className = 'bg-white dark:bg-carddark mb-4 border-b border-gray-100 dark:border-gray-800 pb-2';
+        el.innerHTML = `
+            <div class="flex items-center justify-between p-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full overflow-hidden border ${isAnon ? 'border-purple-500 bg-purple-100' : 'border-gray-200'}">
+                        <img src="${avatar}" class="w-full h-full object-cover ${isAnon ? 'p-1' : 'p-0'}" onerror="this.src='https://api.dicebear.com/7.x/identicon/svg?seed=default'">
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm flex items-center gap-1 dark:text-white">
+                            ${escapeHtml(username)}
+                            ${isAnon ? '<i data-lucide="venetian-mask" class="w-3 h-3 text-purple-500"></i>' : ''}
+                        </div>
+                        <div class="text-[10px] text-gray-400 flex items-center gap-1">
+                            ${post.location ? `<i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHtml(post.location)} •` : ''} 
+                            ${time}
+                        </div>
+                    </div>
+                </div>
+                <button onclick="reportContent('${post.id}', 'post')" class="text-gray-400 hover:text-red-500">
+                    <i data-lucide="flag" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="relative bg-gray-100 dark:bg-black ${contentClass} overflow-hidden flex items-center justify-center">
+                ${contentHtml}
+                ${isAnon ? '<div class="absolute bottom-3 right-3 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"><i data-lucide="eye-off" class="w-3 h-3"></i> Gizli</div>' : ''}
+            </div>
+
+            <div class="p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex gap-4">
+                        <button onclick="toggleLike('${post.id}', '${post.userId}')">
+                            <i data-lucide="heart" class="w-6 h-6 hover:text-red-500 transition-colors ${likeIconClass}"></i>
+                        </button>
+                        <button onclick="openComments('${post.id}', '${post.userId}')">
+                            <i data-lucide="message-circle" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i>
+                        </button>
+                    </div>
+                    <button onclick="showToast('Kaydedildi')">
+                        <i data-lucide="bookmark" class="w-6 h-6 text-gray-500 dark:text-gray-400"></i>
+                    </button>
+                </div>
+                <div class="font-semibold text-sm mb-1 dark:text-white">${likeCount} beğenme</div>
+                <div class="text-sm dark:text-gray-300">
+                    <span class="font-bold mr-1 dark:text-white">${escapeHtml(username)}</span>
+                    <span class="opacity-90">${post.type !== 'text' ? escapeHtml(post.caption || '') : ''}</span>
+                </div>
+                <div class="text-xs text-purple-500 mt-1">${escapeHtml(post.hashtag || '')}</div>
+                <button onclick="openComments('${post.id}', '${post.userId}')" class="text-xs text-gray-400 mt-1 cursor-pointer">
+                    Yorumları gör...
+                </button>
+            </div>
+        `;
+        container.appendChild(el);
+    });
+    lucide.createIcons();
+};
+
+const renderStories = () => {
+    const container = document.getElementById('stories-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Kendi hikayemiz
+    const myStoryEl = document.createElement('div');
+    myStoryEl.className = 'flex flex-col items-center cursor-pointer flex-shrink-0';
+    myStoryEl.onclick = () => openUpload('story');
+    myStoryEl.innerHTML = `
+        <div class="w-16 h-16 rounded-full border-2 border-purple-500 flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 mb-1">
+            <i data-lucide="plus" class="w-5 h-5 text-white"></i>
+        </div>
+        <span class="text-xs mt-1 dark:text-white">Sizin</span>
+    `;
+    container.appendChild(myStoryEl);
+
+    // Diğer kullanıcıların hikayeleri
+    const uniqueStories = {};
+    state.stories.forEach(story => {
+        if (!uniqueStories[story.userId]) {
+            uniqueStories[story.userId] = story;
+        }
+    });
+
+    Object.values(uniqueStories).forEach(story => {
+        if (story.userId === userId) return;
+        
+        const el = document.createElement('div');
+        el.className = 'flex flex-col items-center cursor-pointer flex-shrink-0';
+        el.onclick = () => {
+            const userStories = state.stories.filter(s => s.userId === story.userId);
+            viewStory(userStories);
+        };
+        el.innerHTML = `
+            <div class="story-ring w-16 h-16 mb-1">
+                <img src="${story.userAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default'}" 
+                     class="w-full h-full rounded-full object-cover p-0.5"
+                     onerror="this.src='https://api.dicebear.com/7.x/identicon/svg?seed=default'">
+            </div>
+            <span class="text-xs truncate max-w-[60px] dark:text-white">${escapeHtml(story.username || 'Kullanıcı')}</span>
+        `;
+        container.appendChild(el);
+    });
+
+    lucide.createIcons();
+};
+
+const renderExplore = () => {
+    searchExplore('');
+};
+
+const searchExplore = (term) => {
+    const grid = document.getElementById('explore-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    const searchTerm = term.toLowerCase();
+    
+    let filtered = state.posts;
+    if (searchTerm) {
+        filtered = state.posts.filter(p => 
+            (p.caption && p.caption.toLowerCase().includes(searchTerm)) || 
+            (p.hashtag && p.hashtag.toLowerCase().includes(searchTerm)) ||
+            (p.username && p.username.toLowerCase().includes(searchTerm)) ||
+            (p.location && p.location.toLowerCase().includes(searchTerm))
+        );
+    }
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div class="col-span-3 text-center p-5 text-gray-500">Sonuç bulunamadı.</div>';
+        return;
+    }
+
+    filtered.forEach((post, i) => {
+        const div = document.createElement('div');
+        const isLarge = i % 5 === 0;
+        div.className = `relative overflow-hidden cursor-pointer bg-gray-100 dark:bg-gray-800 aspect-square ${isLarge ? 'col-span-2 row-span-2' : ''}`;
+        
+        let content = '';
+        if (post.type === 'video') {
+            content = `<video src="${post.imageUrl}" class="w-full h-full object-cover" muted></video>`;
+        } else if (post.imageUrl) {
+            content = `<img src="${post.imageUrl}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x400?text=Resim'">`;
+        } else {
+            content = `<div class="w-full h-full bg-purple-500 flex items-center justify-center text-white text-xs p-2 text-center">${escapeHtml(post.caption || '')}</div>`;
+        }
+        
+        div.innerHTML = content;
+        grid.appendChild(div);
+    });
+};
+
+const renderProfilePosts = () => {
+    const container = document.getElementById('profile-grid');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const myPosts = state.posts.filter(p => p.userId === userId);
+    
+    myPosts.forEach(post => {
+        const div = document.createElement('div');
+        div.className = 'aspect-square relative overflow-hidden bg-gray-100 dark:bg-gray-800 border dark:border-gray-800';
+        
+        let content = '';
+        if (post.imageUrl) {
+            content = `<img src="${post.imageUrl}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x400?text=Gönderi'">`;
+        } else {
+            content = `<div class="w-full h-full bg-indigo-500 flex items-center justify-center text-white text-xs p-2 text-center">${escapeHtml(post.caption || '')}</div>`;
+        }
+        
+        div.innerHTML = content;
+        container.appendChild(div);
+    });
+};
+
+const renderNotifications = () => {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (state.notifications.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 mt-10">Henüz bildirim yok.</div>';
+        return;
+    }
+
+    state.notifications.forEach(n => {
+        const icon = n.type === 'like' ? 'heart' : (n.type === 'comment' ? 'message-circle' : 'bell');
+        const color = n.type === 'like' ? 'text-red-500' : 'text-purple-500';
+        const time = n.createdAt ? timeSince(new Date(n.createdAt.seconds * 1000)) : '';
+
+        const el = document.createElement('div');
+        el.className = 'flex items-center p-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-carddark hover:bg-gray-50 dark:hover:bg-gray-800';
+        el.innerHTML = `
+            <div class="mr-3 ${color}"><i data-lucide="${icon}" class="w-6 h-6"></i></div>
+            <img src="${n.fromAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default'}" 
+                 class="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200">
+            <div class="flex-1 text-sm dark:text-gray-200">
+                <span class="font-bold">${escapeHtml(n.fromUser || 'Kullanıcı')}</span> ${escapeHtml(n.text || '')}
+            </div>
+            <div class="text-xs text-gray-400">${time}</div>
+        `;
+        container.appendChild(el);
+    });
+    lucide.createIcons();
+};
+
+// ========== CHAT İŞLEMLERİ ==========
+const renderChatList = () => {
+    const container = document.getElementById('chat-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+
+    if (state.chats.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 mt-10">
+                <i data-lucide="message-square" class="w-8 h-8 mx-auto mb-2"></i>
+                <p>Sohbet başlatmak için + butonuna bas.</p>
+            </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    state.chats.forEach(chat => {
+        const otherUserId = chat.participants?.find(id => id !== userId) || '';
+        const otherName = chat.names?.[otherUserId] || 'Anonim Kullanıcı';
+        const lastMsg = chat.lastMessage || 'Mesaj yok.';
+        const lastTime = chat.lastMessageTime ? timeSince(new Date(chat.lastMessageTime.seconds * 1000)) : '';
+
+        const el = document.createElement('div');
+        el.className = 'flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800';
+        el.onclick = () => openChat(chat.id, otherName);
+        el.innerHTML = `
+            <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${otherUserId || 'chat'}" 
+                 class="w-12 h-12 rounded-full object-cover mr-3 bg-gray-200">
+            <div class="flex-1 overflow-hidden">
+                <div class="font-semibold dark:text-white truncate">${escapeHtml(otherName)}</div>
+                <div class="text-sm text-gray-500 truncate dark:text-gray-400">${escapeHtml(lastMsg)}</div>
+            </div>
+            <div class="text-xs text-gray-400 whitespace-nowrap ml-2">${lastTime}</div>
+        `;
+        container.appendChild(el);
+    });
+};
+
+const openUserSearch = () => {
+    document.getElementById('user-search-modal').style.display = 'flex';
+    document.getElementById('user-search-input').value = '';
+    document.getElementById('user-search-results').innerHTML = '';
+};
+
+const searchUsers = async (term) => {
+    const container = document.getElementById('user-search-results');
+    if (!container) return;
+    
+    if (term.length < 2) {
+        container.innerHTML = '';
+        return;
+    }
+
+    try {
+        container.innerHTML = '<div class="text-center p-2 text-gray-500">Aranıyor...</div>';
+        
+        const uniqueUsers = {};
+        state.posts.forEach(p => {
+            if (!p.isAnonymous && p.username && p.username.toLowerCase().includes(term.toLowerCase()) && p.userId !== userId) {
+                uniqueUsers[p.userId] = { 
+                    username: p.username, 
+                    avatar: p.userAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default' 
+                };
+            }
+        });
+
+        container.innerHTML = '';
+        
+        if (Object.keys(uniqueUsers).length === 0) {
+            container.innerHTML = '<div class="text-center p-2 text-gray-500">Kullanıcı bulunamadı</div>';
+            return;
+        }
+
+        Object.keys(uniqueUsers).forEach(uid => {
+            const u = uniqueUsers[uid];
+            const el = document.createElement('div');
+            el.className = 'flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer rounded-lg';
+            el.onclick = () => startChat(uid, u.username);
+            el.innerHTML = `
+                <img src="${u.avatar}" class="w-10 h-10 rounded-full mr-3">
+                <span class="font-bold dark:text-white">${escapeHtml(u.username)}</span>
+            `;
+            container.appendChild(el);
+        });
+
+    } catch (e) {
+        console.error("Kullanıcı arama hatası:", e);
+        container.innerHTML = '<div class="text-center p-2 text-gray-500">Hata oluştu</div>';
+    }
+};
+
+const startChat = async (targetUserId, targetUserName) => {
+    document.getElementById('user-search-modal').style.display = 'none';
+    
+    // Var olan sohbeti kontrol et
+    const existingChat = state.chats.find(c => 
+        c.participants?.includes(targetUserId) && c.participants?.includes(userId)
+    );
+    
+    if (existingChat) {
+        openChat(existingChat.id, targetUserName);
+        return;
+    }
+
+    // Yeni sohbet oluştur
+    try {
+        const sortedIds = [userId, targetUserId].sort();
+        const chatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
+        
+        const chatData = {
+            participants: [userId, targetUserId],
+            names: {
+                [userId]: state.currentUserData?.username || 'Kullanıcı',
+                [targetUserId]: targetUserName
+            },
+            lastMessage: 'Sohbet başladı',
+            lastMessageTime: serverTimestamp(),
+            createdAt: serverTimestamp()
+        };
+        
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', chatId), chatData);
+        openChat(chatId, targetUserName);
+        showToast("Sohbet başlatıldı");
+    } catch (e) {
+        console.error("Sohbet oluşturma hatası:", e);
+        showToast("Sohbet oluşturulamadı.");
+    }
+};
+
+const openChat = (chatId, chatName) => {
+    state.activeChatId = chatId;
+    document.getElementById('chat-name').textContent = chatName;
+    document.getElementById('chat-messages').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Yükleniyor...</div>';
+    
+    document.getElementById('chat-list-view').style.display = 'none';
+    document.getElementById('chat-detail-view').style.display = 'flex';
+    
+    // Mesajları dinle
+    const messagesRef = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+    const q = query(messagesRef, where('chatId', '==', chatId), orderBy('createdAt', 'asc'), limit(100));
+    
+    if (unsubscribeMessages) unsubscribeMessages();
+    
+    unsubscribeMessages = onSnapshot(q, (snap) => {
+        state.activeChatMessages = snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            createdAt: d.data().createdAt || { seconds: Date.now() / 1000 }
+        }));
+        renderChatMessages();
+    });
+};
+
+const closeChat = () => {
+    document.getElementById('chat-list-view').style.display = 'block';
+    document.getElementById('chat-detail-view').style.display = 'none';
+    state.activeChatId = null;
+    
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
+    }
+    
+    renderChatList();
+};
+
+const renderChatMessages = () => {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    state.activeChatMessages.forEach(msg => {
+        const isOwn = msg.senderId === userId;
+        const isAnon = msg.isAnonymous;
+        const time = msg.createdAt ? 
+            new Date(msg.createdAt.seconds * 1000).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}) : '';
+        
+        let content = '';
+        if (msg.type === 'text') {
+            content = `<p class="${isOwn ? 'text-white' : 'dark:text-white'}">${escapeHtml(msg.content)}</p>`;
+        } else if (msg.type === 'image') {
+            content = `<img src="${msg.content}" class="max-w-xs max-h-48 rounded-lg object-contain" onerror="this.src='https://placehold.co/400x300?text=Resim'>`;
+        }
+        
+        const el = document.createElement('div');
+        el.className = `flex ${isOwn ? 'justify-end' : 'justify-start'} w-full`;
+        el.innerHTML = `
+            <div class="message-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
+                ${isAnon && !isOwn ? `<span class="block text-[10px] font-bold opacity-70 mb-1 flex items-center gap-1"><i data-lucide="venetian-mask" class="w-3 h-3"></i> Anonim</span>` : ''}
+                ${content}
+                <div class="text-[9px] opacity-70 text-right mt-1">${time}</div>
+            </div>
+        `;
+        container.appendChild(el);
+    });
+    
+    // Scroll to bottom
+    requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+    });
+    
+    lucide.createIcons();
+};
+
+const sendMessage = async () => {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    const isAnon = document.getElementById('chat-anon-check').checked;
+
+    if (!text || !state.activeChatId || !state.currentUserData) return;
+
+    try {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+            chatId: state.activeChatId,
+            senderId: userId,
+            senderName: state.currentUserData.username,
+            content: text,
+            type: 'text',
+            isAnonymous: isAnon,
+            createdAt: serverTimestamp()
+        });
+        
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', state.activeChatId), {
+            lastMessage: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+            lastMessageTime: serverTimestamp()
+        });
+        
+        input.value = '';
+    } catch(e) {
+        console.error("Mesaj gönderme hatası:", e);
+        showToast("Mesaj gönderilemedi.");
+    }
+};
+
+// ========== NOTIFICATION FUNCTIONS ==========
+const sendNotification = async (toUserId, type, text) => {
+    if (toUserId === userId || !state.currentUserData) return;
+    
+    try {
+        await addDoc(collection(db, 'artifacts', appId, 'users', toUserId, 'notifications'), {
+            fromUser: state.currentUserData.username,
+            fromAvatar: state.currentUserData.avatar,
+            type: type,
+            text: text,
+            isRead: false,
+            createdAt: serverTimestamp()
+        });
+    } catch(e) { 
+        console.error("Bildirim gönderme hatası:", e);
+    }
+};
+
+// ========== POST İŞLEMLERİ ==========
+const toggleLike = async (postId, postOwnerId) => {
+    if (!postId || !postOwnerId || !state.currentUserData) return;
+    
+    const post = state.posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isLiked = post.likes && post.likes[userId];
+    const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
+    
+    try {
+        if (isLiked) {
+            const newLikes = { ...post.likes };
+            delete newLikes[userId];
+            await updateDoc(postRef, {
+                likes: newLikes,
+                likeCount: Math.max((post.likeCount || 1) - 1, 0)
+            });
+        } else {
+            await updateDoc(postRef, {
+                [`likes.${userId}`]: true,
+                likeCount: (post.likeCount || 0) + 1
+            });
+            
+            // Bildirim gönder
+            await sendNotification(postOwnerId, 'like', 'gönderini beğendi.');
+        }
+    } catch(e) { 
+        console.error("Beğeni hatası:", e);
+        showToast("Beğeni işlemi başarısız.");
+    }
+};
+
+const openComments = (postId, postOwnerId) => {
+    currentPostId = postId;
+    currentPostOwnerId = postOwnerId;
+    document.getElementById('comments-modal').style.display = 'flex';
+    document.getElementById('comments-list').innerHTML = '<div class="text-center p-4 dark:text-gray-400">Yükleniyor...</div>';
+    document.getElementById('comment-input').value = '';
+    
+    const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+    const q = query(commentsRef, where('postId', '==', postId), orderBy('createdAt', 'asc'));
+    
+    if (unsubscribeComments) unsubscribeComments();
+    
+    unsubscribeComments = onSnapshot(q, (snap) => {
+        const list = document.getElementById('comments-list');
+        if (!list) return;
+        
+        list.innerHTML = '';
+        
+        if (snap.empty) {
+            list.innerHTML = '<div class="text-center text-gray-500 mt-4">İlk yorumu sen yap!</div>';
+            return;
+        }
+        
+        snap.forEach(doc => {
+            const c = doc.data();
+            const time = c.createdAt ? timeSince(new Date(c.createdAt.seconds * 1000)) : 'Şimdi';
+            const el = document.createElement('div');
+            el.className = 'flex gap-3 mb-4';
+            el.innerHTML = `
+                 <img src="${c.userAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default'}" 
+                      class="w-8 h-8 rounded-full bg-gray-200 object-cover">
+                 <div class="flex-1">
+                    <div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none relative">
+                        <div class="font-bold text-xs ${c.isAnonymous ? 'text-purple-500' : 'dark:text-white'}">
+                            ${escapeHtml(c.username || 'Kullanıcı')}
+                        </div>
+                        <div class="text-sm dark:text-gray-300 break-words">${escapeHtml(c.text || '')}</div>
+                        <button onclick="reportContent('${doc.id}', 'comment')" class="absolute top-1 right-2 text-gray-400 hover:text-red-500">
+                            <i data-lucide="flag" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                    <div class="text-[10px] text-gray-400 mt-1 pl-2">${time}</div>
+                 </div>
+            `;
+            list.appendChild(el);
+        });
+        lucide.createIcons();
+    });
+};
+
+const closeComments = () => {
+    document.getElementById('comments-modal').style.display = 'none';
+    if (unsubscribeComments) {
+        unsubscribeComments();
+        unsubscribeComments = null;
+    }
+    currentPostId = null;
+    currentPostOwnerId = null;
+};
+
+const sendComment = async () => {
+    const text = document.getElementById('comment-input').value.trim();
+    if (!text || !currentPostId || !state.currentUserData) return;
+    
+    const isAnon = document.getElementById('comment-anon-check').checked;
+    
+    try {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'comments'), {
+            postId: currentPostId,
+            userId: userId,
+            username: isAnon ? 'Gizli Üye' : state.currentUserData.username,
+            userAvatar: isAnon ? 'https://cdn-icons-png.flaticon.com/512/9308/9308973.png' : state.currentUserData.avatar,
+            text: text,
+            isAnonymous: isAnon,
+            createdAt: serverTimestamp()
+        });
+        
+        // Bildirim gönder
+        await sendNotification(currentPostOwnerId, 'comment', 'gönderine yorum yaptı.');
+        
+        document.getElementById('comment-input').value = '';
+        showToast("Yorum gönderildi");
+    } catch(e) {
+        console.error("Yorum gönderme hatası:", e);
+        showToast("Yorum gönderilemedi.");
+    }
+};
+
+// ========== UPLOAD İŞLEMLERİ ==========
+const openUpload = (type = 'post') => {
+    state.uploadType = type;
+    document.getElementById('upload-modal').style.display = 'flex';
+    document.getElementById('upload-type-title').textContent = type === 'story' ? 'Yeni Hikaye (24s)' : 'Yeni Gönderi';
+    document.getElementById('file-input').value = '';
+    document.getElementById('preview-container').innerHTML = '';
+    document.getElementById('post-caption').value = '';
+    document.getElementById('location-input').value = '';
+    document.getElementById('hashtag-input').value = '';
+    document.getElementById('anon-check').checked = false;
+    state.uploadFile = null;
+};
+
+const closeUpload = () => {
+    document.getElementById('upload-modal').style.display = 'none';
+    document.getElementById('preview-container').innerHTML = '';
+    document.getElementById('file-input').value = '';
+    state.uploadFile = null;
+};
+
+const previewFile = (input) => {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            showToast("Dosya boyutu çok büyük (Max 5MB)");
+            input.value = '';
+            return;
+        }
+        
+        state.uploadFile = file;
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const container = document.getElementById('preview-container');
+            if (file.type.startsWith('video')) {
+                container.innerHTML = `<video src="${e.target.result}" controls class="w-full max-h-60 rounded-lg"></video>`;
+            } else {
+                container.innerHTML = `<img src="${e.target.result}" class="w-full max-h-60 object-contain rounded-lg">`;
+            }
+        };
+        
+        reader.readAsDataURL(file);
+    }
+};
+
+const sharePost = async () => {
+    const caption = document.getElementById('post-caption').value.trim();
+    const isAnon = document.getElementById('anon-check').checked;
+    const location = document.getElementById('location-input').value.trim();
+    const hashtag = document.getElementById('hashtag-input').value.trim();
+    
+    if (!state.uploadFile && !caption) {
+        showToast("Lütfen bir medya veya açıklama ekleyin.");
+        return;
+    }
+    
+    if (!state.currentUserData) {
+        showToast("Kullanıcı bilgileri yüklenemedi.");
+        return;
+    }
+
+    let mediaUrl = null;
+    let mediaType = 'text';
+
+    if (state.uploadFile) {
+        const file = state.uploadFile;
+        mediaType = file.type.startsWith('video') ? 'video' : 'image';
+        
+        // Gerçek uygulamada burada Firebase Storage'a yükleme yapılır
+        // Demo için base64 kullanıyoruz
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise(resolve => reader.onload = resolve);
+        mediaUrl = reader.result;
+    }
+
+    try {
+        const collectionName = state.uploadType === 'story' ? 'stories' : 'posts';
+        const data = {
+            userId: userId,
+            username: state.currentUserData.username,
+            userAvatar: state.currentUserData.avatar,
+            imageUrl: mediaUrl,
+            type: mediaType,
+            caption: caption,
+            location: location,
+            hashtag: hashtag,
+            isAnonymous: isAnon,
+            likes: {},
+            likeCount: 0,
+            createdAt: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), data);
+        showToast(state.uploadType === 'story' ? "Hikaye paylaşıldı!" : "Gönderi paylaşıldı!");
+        closeUpload();
+    } catch (e) {
+        console.error("Paylaşım hatası:", e);
+        showToast("Paylaşılamadı: " + e.message);
+    }
+};
+
+// ========== STORY İŞLEMLERİ ==========
+const viewStory = (storyItems) => {
+    if (!storyItems || storyItems.length === 0) return;
+    
+    storyQueue = storyItems;
+    currentStoryIndex = 0;
+    
+    document.getElementById('story-viewer').style.display = 'flex';
+    
+    // Progress barları oluştur
+    const progressContainer = document.getElementById('story-progress-bars');
+    progressContainer.innerHTML = storyItems.map(() => 
+        '<div class="story-viewer-progress"><div class="story-viewer-bar"></div></div>'
+    ).join('');
+    
+    playStory();
+};
+
+const playStory = () => {
+    clearTimeout(storyTimeout);
+    
+    if (currentStoryIndex >= storyQueue.length) {
+        closeStory();
+        return;
+    }
+    
+    const story = storyQueue[currentStoryIndex];
+    const content = document.getElementById('story-content');
+    
+    content.innerHTML = '';
+    
+    if (story.type === 'video') {
+        content.innerHTML = `<video id="story-video" src="${story.imageUrl}" autoplay muted class="w-full h-full object-cover"></video>`;
+        const video = content.querySelector('#story-video');
+        if (video) {
+            video.onended = () => {
+                currentStoryIndex++;
+                playStory();
+            };
+        }
+    } else if (story.imageUrl) {
+        content.innerHTML = `<img src="${story.imageUrl}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x800?text=Hikaye'>`;
+    } else {
+        content.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-6 text-center font-bold text-xl">${escapeHtml(story.caption || '')}</div>`;
+    }
+
+    document.getElementById('story-user-img').src = story.userAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=default';
+    document.getElementById('story-username').textContent = story.username || 'Kullanıcı';
+    document.getElementById('story-time').textContent = story.createdAt ? 
+        timeSince(new Date(story.createdAt.seconds * 1000)) : 'Şimdi';
+
+    // Progress barlarını güncelle
+    const bars = document.querySelectorAll('.story-viewer-bar');
+    bars.forEach((bar, index) => {
+        if (index < currentStoryIndex) {
+            bar.style.width = '100%';
+            bar.style.transition = 'none';
+        } else if (index === currentStoryIndex) {
+            bar.style.width = '0%';
+            bar.style.transition = 'none';
+            requestAnimationFrame(() => {
+                bar.style.transition = 'width 5s linear';
+                bar.style.width = '100%';
+            });
+        } else {
+            bar.style.width = '0%';
+            bar.style.transition = 'none';
+        }
+    });
+
+    if (story.type !== 'video') {
+        storyTimeout = setTimeout(() => {
+            currentStoryIndex++;
+            playStory();
+        }, 5000);
+    }
+};
+
+const closeStory = () => {
+    clearTimeout(storyTimeout);
+    document.getElementById('story-viewer').style.display = 'none';
+    storyQueue = [];
+    currentStoryIndex = 0;
+};
+
+// ========== PROFILE İŞLEMLERİ ==========
+const openEditProfile = () => {
+    if (!state.currentUserData) return;
+    
+    document.getElementById('edit-profile-modal').style.display = 'flex';
+    document.getElementById('edit-username').value = state.currentUserData.username;
+    document.getElementById('edit-bio').value = state.currentUserData.bio;
+};
+
+const saveProfile = async () => {
+    const newUsername = document.getElementById('edit-username').value.trim();
+    const newBio = document.getElementById('edit-bio').value.trim();
+    
+    if (newUsername.length < 3) {
+        showToast("Takma ad en az 3 karakter olmalı.");
+        return;
+    }
+
+    try {
+        const userRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+        await updateDoc(userRef, {
+            username: newUsername,
+            bio: newBio
+        });
+        showToast("Profil güncellendi.");
+        document.getElementById('edit-profile-modal').style.display = 'none';
+    } catch(e) {
+        console.error("Profil güncelleme hatası:", e);
+        showToast("Güncelleme başarısız.");
+    }
+};
+
+const deleteAccount = async () => {
+    document.getElementById('confirm-modal-text').innerText = "Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.";
+    document.getElementById('confirm-modal-action').onclick = async () => {
+        document.getElementById('confirm-modal').style.display = 'none';
+        try {
+            await deleteUser(auth.currentUser);
+            showToast("Hesabınız silindi.");
+        } catch(e) {
+            console.error("Hesap silme hatası:", e);
+            showToast("Hesap silinemedi. Lütfen yeniden giriş yapıp tekrar deneyin.");
+        }
+    };
+    document.getElementById('confirm-modal').style.display = 'flex';
+};
+
+const reportContent = (id, type) => {
+    document.getElementById('confirm-modal-text').innerText = `Bu ${type === 'post' ? 'gönderiyi' : 'yorumu'} şikayet etmek istediğinize emin misiniz?`;
+    document.getElementById('confirm-modal-action').onclick = () => {
+        document.getElementById('confirm-modal').style.display = 'none';
+        showToast("Şikayetiniz alındı. Teşekkür ederiz.");
+    };
+    document.getElementById('confirm-modal').style.display = 'flex';
+};
+
+// ========== NAVIGATION ==========
+const switchTab = (viewId) => {
+    // Tüm view'leri gizle
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    
+    // Aktif view'i göster
+    const activeView = document.getElementById(viewId);
+    if (activeView) {
+        activeView.classList.add('active');
+    }
+    
+    // Nav butonlarını güncelle
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-purple-500');
+        btn.classList.add('text-gray-400', 'dark:text-gray-500');
+    });
+    
+    const activeBtn = document.querySelector(`.nav-btn[onclick="switchTab('${viewId}')"]`);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-gray-400', 'dark:text-gray-500');
+        activeBtn.classList.add('text-purple-500');
+    }
+    
+    // Header başlığını güncelle
+    const headerTitle = document.getElementById('header-title');
+    const titles = {
+        'feed-view': 'Gramano',
+        'explore-view': 'Keşfet',
+        'messages-view': 'Sohbetler',
+        'notifications-view': 'Bildirimler',
+        'profile-view': state.currentUserData?.username || 'Profil'
+    };
+    headerTitle.textContent = titles[viewId] || 'Gramano';
+    
+    // Chat view'deyseniz ve aktif chat yoksa chat listesini göster
+    if (viewId === 'messages-view' && state.activeChatId) {
+        closeChat();
+    }
+};
+
+const toggleTheme = () => {
+    const body = document.body;
+    const isDark = body.classList.contains('dark');
+    
+    if (isDark) {
+        body.classList.remove('dark');
+        body.setAttribute('data-theme', 'light');
+    } else {
+        body.classList.add('dark');
+        body.setAttribute('data-theme', 'dark');
+    }
+};
+
+const logout = async () => {
+    try {
+        await signOut(auth);
+        showToast("Çıkış yapıldı");
+    } catch (e) {
+        console.error("Çıkış hatası:", e);
+        showToast("Çıkış yapılırken hata oluştu");
+    }
+};
+
+// ========== GLOBAL FONKSİYONLAR ==========
+window.handleAuth = handleAuth;
+window.handleAnonAuth = handleAnonAuth;
+window.showToast = showToast;
+
+window.toggleLike = toggleLike;
+window.openComments = openComments;
+window.closeComments = closeComments;
+window.sendComment = sendComment;
+window.reportContent = reportContent;
+
+window.openUpload = openUpload;
+window.closeUpload = closeUpload;
+window.previewFile = previewFile;
+window.sharePost = sharePost;
+
+window.viewStory = viewStory;
+window.closeStory = closeStory;
+window.playStory = playStory;
+
+window.openEditProfile = openEditProfile;
+window.saveProfile = saveProfile;
+window.deleteAccount = deleteAccount;
+
+window.switchTab = switchTab;
+window.toggleTheme = toggleTheme;
+window.logout = logout;
+
+window.openUserSearch = openUserSearch;
+window.searchUsers = searchUsers;
+window.startChat = startChat;
+window.openChat = openChat;
+window.closeChat = closeChat;
+window.sendMessage = sendMessage;
+
+window.searchExplore = searchExplore;
+
+// ========== BAŞLATMA ==========
+document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    initFirebase();
+});
+</script>
 </body>
 </html>
