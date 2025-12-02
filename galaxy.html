@@ -122,6 +122,21 @@
 
     <!-- FIREBASE INIT & CORE LOGIC -->
     <script type="module">
+        // ========== FIREBASE KONFİGÜRASYONU ==========
+        const firebaseConfig = {
+            apiKey: "AIzaSyBf95NYXP8HgIOQPJo9B5zTHXrqhgol-1c",
+            authDomain: "insta-17210.firebaseapp.com",
+            projectId: "insta-17210",
+            storageBucket: "insta-17210.firebasestorage.app",
+            messagingSenderId: "287281107154",
+            appId: "1:287281107154:web:db4100f2d055b96d1d5d0b",
+            measurementId: "G-VV5DQKPC5L"
+        };
+
+        // Global değişkenlere atayın
+        window.__firebase_config = JSON.stringify(firebaseConfig);
+        // ========== FIREBASE KONFİGÜRASYONU SONU ==========
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
@@ -469,7 +484,49 @@
                 lucide.createIcons();
             },
 
-            // KEŞFET ARAMA MANTIĞI
+            renderStories: () => {
+                const container = document.getElementById('stories-container');
+                container.innerHTML = '';
+                
+                // Kendi hikayemiz (Yeni hikaye ekle butonu)
+                const myStoryEl = document.createElement('div');
+                myStoryEl.className = 'flex flex-col items-center cursor-pointer';
+                myStoryEl.onclick = () => window.app.openUpload('story');
+                myStoryEl.innerHTML = `
+                    <div class="w-16 h-16 rounded-full border-2 border-purple-500 flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600 mb-1">
+                        <i data-lucide="plus" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <span class="text-xs mt-1 dark:text-white">Sizin</span>
+                `;
+                container.appendChild(myStoryEl);
+
+                // Diğer kullanıcıların hikayeleri
+                const uniqueStories = {};
+                window.app.stories.forEach(story => {
+                    if (!uniqueStories[story.userId]) {
+                        uniqueStories[story.userId] = story;
+                    }
+                });
+
+                Object.values(uniqueStories).forEach(story => {
+                    const el = document.createElement('div');
+                    el.className = 'flex flex-col items-center cursor-pointer';
+                    el.onclick = () => {
+                        const userStories = window.app.stories.filter(s => s.userId === story.userId);
+                        window.app.viewStory(userStories);
+                    };
+                    el.innerHTML = `
+                        <div class="story-ring w-16 h-16 mb-1">
+                            <img src="${story.userAvatar}" class="w-full h-full rounded-full object-cover p-0.5">
+                        </div>
+                        <span class="text-xs truncate max-w-[60px] dark:text-white">${escapeHtml(story.username)}</span>
+                    `;
+                    container.appendChild(el);
+                });
+
+                lucide.createIcons();
+            },
+
             searchExplore: (term) => {
                 const grid = document.getElementById('explore-grid');
                 grid.innerHTML = '';
@@ -592,22 +649,6 @@
                 }
 
                 try {
-                    // Firestore kısıtlamaları nedeniyle basit bir client-side filtreleme simülasyonu yapıyoruz.
-                    // Gerçek uygulamada "username_search" alanı ile where('username_search', '>=', term) yapılmalı.
-                    // Burada public tüm kullanıcıları çekip filtreliyoruz (Small scale demo için uygun)
-                    // HACK: artifacts/users/userId/profile/data dökümanları root collection değil.
-                    // Bu yapıda (User/Profile/Data) "tüm kullanıcıları listeleme" zor.
-                    // Çözüm: Demo amaçlı basit bir liste.
-                    
-                    // Doğrusu: Kullanıcı kayıt olurken "public_profiles" collection'ına da yazmalıydık.
-                    // Workaround: Mevcut yapı için şimdilik aramayı simüle edelim veya aktif chatlerde ara.
-                    // Ancak kullanıcının isteği "yeni kişi bulmak".
-                    // Bu yüzden kullanıcılar oluşturulurken 'public/data/users' collection'ına da yazmalıyız.
-                    // (EnsureUserProfile güncellendi, ancak eski kullanıcılar orada yoksa çıkmaz.)
-                    
-                    // Basitlik için: Bir 'public_users' collection oluşturalım ve oradan arayalım.
-                    // Ama şu an elimizdeki yapı ile 'public/data/posts' üzerinden kullanıcıları bulabiliriz.
-                    
                     container.innerHTML = '<div class="text-center p-2 text-gray-500">Aranıyor...</div>';
                     
                     // Gönderisi olan kullanıcıları bul (Postlardan unique kullanıcıları çek)
@@ -691,8 +732,6 @@
                 } catch(e) { console.error("Bildirim hatası", e); }
             },
 
-            // ... (Diğer fonksiyonlar: Upload, Share, Stories vb. aynı kalıyor) ...
-            
             toggleLike: async (postId, postOwnerId) => {
                 const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'posts', postId);
                 const post = window.app.posts.find(p => p.id === postId);
@@ -719,8 +758,6 @@
                 } catch(e) { console.error("Like error", e); }
             },
 
-            // ... (Diğer fonksiyonlar: renderChatMessages, openChat, closeChat vb. aynı) ...
-            
             renderChatMessages: () => {
                 const container = document.getElementById('chat-messages');
                 container.innerHTML = '';
@@ -807,7 +844,6 @@
                 }
             },
 
-             // ... (Upload ve Story fonksiyonları aynı) ...
             uploadFile: null,
             uploadType: 'post',
 
@@ -898,7 +934,6 @@
                 }
             },
 
-            // Yorum Kısmı Güncelleme (Bildirim için)
             openComments: (postId, postOwnerId) => {
                 window.currentPostId = postId;
                 window.currentPostOwnerId = postOwnerId;
@@ -967,7 +1002,6 @@
                 }
             },
             
-            // ... (Story Viewer aynı) ...
             viewStory: (storyItems) => {
                 if(!storyItems || storyItems.length === 0) return;
                 window.storyQueue = storyItems;
@@ -1030,7 +1064,6 @@
                 document.getElementById('story-viewer').style.display = 'none';
             },
 
-            // ... (Settings & Other) ...
             openEditProfile: () => {
                 const u = window.app.currentUserData;
                 document.getElementById('edit-profile-modal').style.display = 'flex';
